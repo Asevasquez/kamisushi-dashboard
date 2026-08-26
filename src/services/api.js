@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://appsupervision-backendsupervision-rihibb-5b3f72-159-65-111-120.sslip.io/api';
+const API_URL = 'https://supervision-back.vertigs.net/api';
 
 const api = axios.create({
   baseURL: API_URL,
