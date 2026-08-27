@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   AppBar, Box, Toolbar, Typography, Button, Drawer,
   List, ListItem, ListItemIcon, ListItemText, Avatar,
@@ -41,11 +41,25 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const filteredMenu = menuItems.filter(item => item.roles.includes(user?.rol));
   const rolColor = ROL_COLOR[user?.rol] || '#d32f2f';
+  
+  // 🔥 NUEVO: Para calcular dinámicamente la altura del AppBar
+  const appBarRef = useRef(null);
+  const [appBarHeight, setAppBarHeight] = useState(64);
+
+  useEffect(() => {
+    if (appBarRef.current) {
+      setAppBarHeight(appBarRef.current.clientHeight);
+    }
+  }, []);
 
   return (
     <Box sx={{ display: 'flex' }}>
       {/* ===== BARRA SUPERIOR ===== */}
-      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, bgcolor: '#d32f2f', boxShadow: '0 2px 8px rgba(211,47,47,0.3)' }}>
+      <AppBar 
+        ref={appBarRef}
+        position="fixed" 
+        sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, bgcolor: '#d32f2f', boxShadow: '0 2px 8px rgba(211,47,47,0.3)' }}
+      >
         <Toolbar>
           <Box display="flex" alignItems="center" gap={1} sx={{ flexGrow: 1 }}>
             <Typography fontSize={22}>🍣</Typography>
@@ -82,20 +96,11 @@ export default function Layout() {
             boxSizing: 'border-box',
             borderRight: '1px solid #f0f0f0',
             zIndex: (theme) => theme.zIndex.drawer,
-            // 🔥 SOLUCIÓN 2: Eliminamos el paddingTop y usaremos un div espaciador
           },
         }}
       >
-        {/* 🔥 NUEVO: Div espaciador en lugar de Toolbar */}
-        <Box 
-          sx={{ 
-            height: '64px', // Altura estándar del AppBar en desktop
-            flexShrink: 0,
-            '@media (max-width:600px)': {
-              height: '56px', // Altura del AppBar en móvil
-            }
-          }} 
-        />
+        {/* 🔥 NUEVO: Espaciador dinámico basado en la altura real del AppBar */}
+        <Box sx={{ height: `${appBarHeight}px`, flexShrink: 0 }} />
         
         <Box sx={{ overflow: 'auto', pt: 1 }}>
           <List>
@@ -168,9 +173,9 @@ export default function Layout() {
         p: 3, 
         bgcolor: '#f8fafc', 
         minHeight: '100vh', 
-        pt: { xs: 10, sm: 10 } 
       }}>
-        <Toolbar />
+        {/* 🔥 NUEVO: Espaciador dinámico también para el contenido */}
+        <Box sx={{ height: `${appBarHeight}px` }} />
         <Outlet />
       </Box>
     </Box>
