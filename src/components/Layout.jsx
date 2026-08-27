@@ -44,6 +44,7 @@ export default function Layout() {
 
   return (
     <Box sx={{ display: 'flex' }}>
+      {/* ===== BARRA SUPERIOR ===== */}
       <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, bgcolor: '#d32f2f', boxShadow: '0 2px 8px rgba(211,47,47,0.3)' }}>
         <Toolbar>
           <Box display="flex" alignItems="center" gap={1} sx={{ flexGrow: 1 }}>
@@ -70,26 +71,42 @@ export default function Layout() {
         </Toolbar>
       </AppBar>
 
-      <Drawer variant="permanent" sx={{
-        width: DRAWER_WIDTH, flexShrink: 0,
-        [`& .MuiDrawer-paper`]: {
-          width: DRAWER_WIDTH, boxSizing: 'border-box',
-          borderRight: '1px solid #f0f0f0',
-          zIndex: (theme) => theme.zIndex.drawer,
-        },
-      }}>
-        <Toolbar /> {/* Espaciador para no quedar debajo del AppBar */}
+      {/* ===== MENÚ LATERAL ===== */}
+      <Drawer 
+        variant="permanent" 
+        sx={{
+          width: DRAWER_WIDTH, 
+          flexShrink: 0,
+          [`& .MuiDrawer-paper`]: {
+            width: DRAWER_WIDTH, 
+            boxSizing: 'border-box',
+            borderRight: '1px solid #f0f0f0',
+            zIndex: (theme) => theme.zIndex.drawer,
+            // 🔥 SOLUCIÓN: Padding superior para que el menú no quede debajo del AppBar
+            paddingTop: '64px', // Altura estándar del AppBar en desktop
+            '@media (max-width:600px)': {
+              paddingTop: '56px', // Altura del AppBar en móvil
+            }
+          },
+        }}
+      >
+        {/* ELIMINAMOS EL <Toolbar /> QUE ESTABA AQUÍ */}
+        
         <Box sx={{ overflow: 'auto', pt: 1 }}>
           <List>
             {filteredMenu.map((item) => {
               const selected = location.pathname === item.path;
               return (
                 <ListItem
-                  button key={item.path}
+                  button 
+                  key={item.path}
                   selected={selected}
                   onClick={() => navigate(item.path)}
                   sx={{
-                    mx: 1, mb: 0.5, borderRadius: 2, width: 'calc(100% - 16px)',
+                    mx: 1, 
+                    mb: 0.5, 
+                    borderRadius: 2, 
+                    width: 'calc(100% - 16px)',
                     '&.Mui-selected': {
                       bgcolor: '#d32f2f',
                       '& .MuiListItemIcon-root': { color: '#fff' },
@@ -115,10 +132,22 @@ export default function Layout() {
 
           {/* Info usuario en sidebar */}
           <Box sx={{ px: 2, py: 1 }}>
-            <Box sx={{ p: 1.5, bgcolor: '#fff5f5', borderRadius: 2, border: '1px solid #ffcdd2' }}>
+            <Box sx={{ 
+              p: 1.5, 
+              bgcolor: '#fff5f5', 
+              borderRadius: 2, 
+              border: '1px solid #ffcdd2' 
+            }}>
               <Typography variant="caption" color="textSecondary" display="block">Sesión activa</Typography>
               <Typography variant="body2" fontWeight={600} noWrap>{user?.nombre}</Typography>
-              <Box sx={{ display: 'inline-block', bgcolor: rolColor, px: 1, py: 0.2, borderRadius: 1, mt: 0.5 }}>
+              <Box sx={{ 
+                display: 'inline-block', 
+                bgcolor: rolColor, 
+                px: 1, 
+                py: 0.2, 
+                borderRadius: 1, 
+                mt: 0.5 
+              }}>
                 <Typography variant="caption" color="#fff" fontWeight={700} textTransform="capitalize">
                   {user?.rol}
                 </Typography>
@@ -128,7 +157,14 @@ export default function Layout() {
         </Box>
       </Drawer>
 
-      <Box component="main" sx={{ flexGrow: 1, p: 3, bgcolor: '#f8fafc', minHeight: '100vh', pt: { xs: 10, sm: 10 } }}>
+      {/* ===== CONTENIDO PRINCIPAL ===== */}
+      <Box component="main" sx={{ 
+        flexGrow: 1, 
+        p: 3, 
+        bgcolor: '#f8fafc', 
+        minHeight: '100vh', 
+        pt: { xs: 10, sm: 10 } 
+      }}>
         <Toolbar />
         <Outlet />
       </Box>
