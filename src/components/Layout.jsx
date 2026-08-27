@@ -72,9 +72,13 @@ export default function Layout() {
 
       <Drawer variant="permanent" sx={{
         width: DRAWER_WIDTH, flexShrink: 0,
-        [`& .MuiDrawer-paper`]: { width: DRAWER_WIDTH, boxSizing: 'border-box', borderRight: '1px solid #f0f0f0' },
+        [`& .MuiDrawer-paper`]: {
+          width: DRAWER_WIDTH, boxSizing: 'border-box',
+          borderRight: '1px solid #f0f0f0',
+          zIndex: (theme) => theme.zIndex.drawer,
+        },
       }}>
-        <Toolbar />
+        <Toolbar /> {/* Espaciador para no quedar debajo del AppBar */}
         <Box sx={{ overflow: 'auto', pt: 1 }}>
           <List>
             {filteredMenu.map((item) => {
