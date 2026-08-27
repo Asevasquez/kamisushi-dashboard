@@ -14,8 +14,13 @@ export const AuthProvider = ({ children }) => {
     const storedUser = localStorage.getItem('@KamiSushi:user');
 
     if (token && storedUser) {
-      setUser(JSON.parse(storedUser));
-      api.defaults.headers.Authorization = `Bearer ${token}`;
+      try {
+        setUser(JSON.parse(storedUser));
+        api.defaults.headers.Authorization = `Bearer ${token}`;
+      } catch (e) {
+        localStorage.removeItem('@KamiSushi:token');
+        localStorage.removeItem('@KamiSushi:user');
+      }
     }
     setLoading(false);
   }, []);
@@ -33,9 +38,11 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true };
     } catch (error) {
+      // Propagar tanto el mensaje como el code del backend
       return {
         success: false,
         error: error.response?.data?.error || 'Error al iniciar sesión',
+        code: error.response?.data?.code || '',
       };
     }
   };
