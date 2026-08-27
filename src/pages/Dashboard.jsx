@@ -89,6 +89,7 @@ export default function Dashboard() {
   const [tab, setTab] = useState(0);
   const [ultimaAct, setUltimaAct] = useState(null);
   const [selectedLocal, setSelectedLocal] = useState('');
+  const [sinLocalesAsignados, setSinLocalesAsignados] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => { cargarDatos(); }, []);
@@ -104,6 +105,7 @@ export default function Dashboard() {
         api.get('/estadisticas/mis-locales').catch(() => ({ data: [] })),
       ]);
       setStats(statsRes.data);
+      setSinLocalesAsignados(statsRes.data?.sinLocalesAsignados || false);
       setRevisionesMes(mesRes.data || {});
       setLocalesActivos(localesRes.data || []);
       setUltimaAct(new Date());
@@ -204,9 +206,9 @@ export default function Dashboard() {
         <Grid container spacing={2} sx={{ mt: 2 }}>
           {[
             { label: 'Revisiones este mes', value: Object.values(revisionesMes).reduce((a, v) => a + v.totalRevisiones, 0), icon: <AssignmentIcon /> },
-            { label: 'Promedio general', value: `${promedioGeneral.toFixed(1)}%`, icon: <TrendingUpIcon /> },
-            { label: 'Locales revisados', value: `${Object.keys(revisionesMes).length}/${localesActivos.length}`, icon: <StoreIcon /> },
-            { label: 'Supervisores', value: supervisores.length || totalRevisiones > 0 ? (supervisores.length || '—') : '—', icon: <PeopleIcon /> },
+            { label: 'Promedio general', value: sinLocalesAsignados ? '—' : `${promedioGeneral.toFixed(1)}%`, icon: <TrendingUpIcon /> },
+            { label: 'Locales revisados', value: sinLocalesAsignados ? 'Sin asignar' : `${Object.keys(revisionesMes).length}/${localesActivos.length}`, icon: <StoreIcon /> },
+            { label: 'Supervisores', value: supervisores.length || (totalRevisiones > 0 ? (supervisores.length || '—') : '—'), icon: <PeopleIcon /> },
           ].map((s, i) => (
             <Grid item xs={6} sm={3} key={i}>
               <Box display="flex" alignItems="center" gap={1.5}>
@@ -220,6 +222,14 @@ export default function Dashboard() {
           ))}
         </Grid>
       </Paper>
+
+      {/* ─── AVISO SIN LOCALES ASIGNADOS ────────────────── */}
+      {sinLocalesAsignados && (
+        <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
+          <strong>Sin locales asignados.</strong> Tu cuenta aún no tiene locales asignados.
+          Contacta al administrador para que te asigne locales y puedas ver las revisiones.
+        </Alert>
+      )}
 
       {/* ─── ALERTAS ─────────────────────────────────────── */}
       {localesCriticos.length > 0 && (
