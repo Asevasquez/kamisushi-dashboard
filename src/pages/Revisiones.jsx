@@ -24,6 +24,56 @@ import { useAuth } from '../context/AuthContext';
 
 const API_BASE = 'https://supervision-back.vertigs.net';
 
+// ─── Diccionario de preguntas ─────────────────────────────
+const PREGUNTAS = {
+  'SC-01': 'El local cumple con la presentación y estado físico del local',
+  'SC-02': 'Hay presencia del encargado en el local',
+  'SC-03': 'No existen reclamos de clientes',
+  'SC-04': 'Cumple con el protocolo de atención al cliente',
+  'SC-05': 'Cumple con la persuasión de promociones LUX — Presencial',
+  'SC-06': 'Cumple con la persuasión de promociones LUX — Llamadas',
+  'SC-07': 'Cumple con la persuasión de promociones LUX — WhatsApp',
+  'SC-08': 'Cuenta con publicidad física vigente y en buen estado',
+  'SC-09': 'Se realiza el ofrecimiento de adicionales',
+  'SC-10': 'Tiene las respuestas rápidas en WhatsApp Business',
+  'SC-11': 'Tiene promociones vigentes y actualizadas',
+  'SC-12': 'Sin listas de difusión masiva — WhatsApp',
+  'SC-13': 'Tiene los contactos de clientes guardados correctamente',
+  'SC-14': 'Existe conocimiento de carta por parte del equipo',
+  'SC-15': 'Cuentan con los equipos operativos',
+  'SC-16': 'Ruta de flyers realizada',
+  'SC-17': 'Cumple con el protocolo de empaque',
+  'CF-01': 'Realizan el lavado de arroz correctamente',
+  'CF-02': 'Realizan el aliño del arroz correctamente',
+  'CF-03': 'Realizan la cocción del arroz correctamente',
+  'CF-04': 'Mise en place en condiciones adecuadas',
+  'CF-05': 'Cumple con los gramajes estándar',
+  'CF-06': 'Se realiza la rotulación de salsas',
+  'CF-07': 'Plaquetas con gramaje adecuado',
+  'CF-09': 'Realizan correctamente la dilución de antioxidante',
+  'CF-10': 'Lavado y almacenamiento de verduras correcto',
+  'CF-11': 'Control de temperatura en refrigeración',
+  'CF-12': 'Descongelación correcta de pollo y reineta',
+  'CF-13': 'Ceviche correcto',
+  'CF-14': 'Sellado de rollos correcto',
+  'CC-01': 'Batido del huevo correcto (para apanado)',
+  'CC-02': 'Proceso de apanado correcto — rollo y pollo',
+  'CC-03': 'Control de temperatura de freidora',
+  'CC-04': 'Sellado de puntas en rolls fritos',
+  'CC-05': 'Control de grumos en harina, huevo y panko',
+  'CC-06': 'Uso correcto de tablas de cortar (código de colores)',
+  'CC-07': 'Estandarización de cortes del roll',
+  'CC-08': 'Afilado y mantenimiento de cuchillos',
+  'CC-09': 'Aliñado del pollo correcto',
+  'CC-10': 'Elaboración correcta de recetas de salsas',
+  'CC-11': 'Calidad y estado del aceite de fritura',
+  'CC-12': 'Presentan dudas en elaboraciones básicas o de alta complejidad',
+  'CC-13': 'Campana extractora operativa y limpia',
+  'CC-14': 'Limpieza diaria y profunda de las áreas',
+  'CC-15': 'Limpieza y sanitización del área de trabajo',
+  'CC-16': 'Utilizan elementos de protección e higiene personal',
+};
+
 const getCategoriaColor = (categoria) => {
   const map = { 'EXCELENTE': 'success', 'MUY BUENO': 'success', 'BUENO': 'primary', 'REGULAR': 'warning', 'MALO': 'error', 'PÉSIMO': 'error' };
   return map[categoria] || 'default';
@@ -104,16 +154,29 @@ function SeccionDetalle({ titulo, respuestas, color }) {
           <Typography color="success.main" variant="body2">✅ Sin incumplimientos en esta sección</Typography>
         ) : (
           incumplidos.map(([id, v]) => (
-            <Box key={id} sx={{ mb: 1, p: 1.5, bgcolor: '#fff5f5', borderRadius: 1, borderLeft: '3px solid #d32f2f' }}>
-              <Box display="flex" alignItems="center" gap={1}>
-                <CancelIcon fontSize="small" color="error" />
-                <Typography variant="body2" fontWeight={600} color="error">{id}</Typography>
+            <Box key={id} sx={{ mb: 1.5, p: 2, bgcolor: '#fff5f5', borderRadius: 1, borderLeft: '3px solid #d32f2f' }}>
+              <Box display="flex" alignItems="flex-start" gap={1} mb={0.5}>
+                <CancelIcon fontSize="small" color="error" sx={{ mt: 0.3, flexShrink: 0 }} />
+                <Box>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Typography variant="caption" fontWeight={800} color="error"
+                      sx={{ bgcolor: '#fee2e2', px: 0.8, py: 0.1, borderRadius: 1 }}>
+                      {id}
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.primary" fontWeight={500} sx={{ mt: 0.3 }}>
+                    {PREGUNTAS[id] || id}
+                  </Typography>
+                </Box>
               </Box>
               {v.observacion && (
-                <Typography variant="body2" color="textSecondary" sx={{ mt: 0.5, ml: 3 }}>{v.observacion}</Typography>
+                <Box sx={{ ml: 3.5, mt: 0.5, p: 1, bgcolor: '#fff', borderRadius: 1, border: '1px solid #fecaca' }}>
+                  <Typography variant="caption" color="error" fontWeight={600}>Observación: </Typography>
+                  <Typography variant="caption" color="textSecondary">{v.observacion}</Typography>
+                </Box>
               )}
               {v.fotos?.length > 0 && (
-                <ImageList cols={4} gap={4} sx={{ mt: 1, ml: 3 }}>
+                <ImageList cols={4} gap={4} sx={{ mt: 1, ml: 3.5 }}>
                   {v.fotos.map((f, i) => <FotoItem key={i} src={f} alt={`${id} foto ${i + 1}`} />)}
                 </ImageList>
               )}
@@ -377,30 +440,43 @@ export default function Revisiones() {
                   </Grid>
                   <Grid item xs={12}><Divider /></Grid>
                   {[
-                    { key: 'servicioCliente', label: 'Servicio al Cliente', peso: 40 },
-                    { key: 'cuartoFrio', label: 'Cuarto Frío', peso: 30 },
-                    { key: 'cuartoCaliente', label: 'Cuarto Caliente', peso: 30 },
-                  ].map(({ key, label, peso }) => {
+                    { key: 'servicioCliente', label: 'Servicio al Cliente', peso: 40, color: '#2196f3' },
+                    { key: 'cuartoFrio', label: 'Cuarto Frío', peso: 30, color: '#4caf50' },
+                    { key: 'cuartoCaliente', label: 'Cuarto Caliente', peso: 30, color: '#ff9800' },
+                  ].map(({ key, label, peso, color }) => {
                     const respuestas = rev[key]?.respuestas || {};
                     const total = Object.keys(respuestas).length;
                     const cumplidos = Object.values(respuestas).filter(r => r.cumple).length;
+                    const incumplidos = total - cumplidos;
                     const pct = total > 0 ? (cumplidos / total) * 100 : 0;
+                    const pColor = getPorcentajeColor(pct);
                     return (
                       <Grid item xs={12} sm={4} key={key}>
-                        <Paper variant="outlined" sx={{ p: 2 }}>
-                          <Typography variant="subtitle2" fontWeight={700}>{label}</Typography>
-                          <Typography variant="caption" color="textSecondary">Peso: {peso}%</Typography>
-                          <Box display="flex" alignItems="center" gap={1} mt={1}>
-                            <LinearProgress variant="determinate" value={pct}
-                              sx={{ flex: 1, height: 8, borderRadius: 4,
-                                '& .MuiLinearProgress-bar': { bgcolor: getPorcentajeColor(pct) } }} />
-                            <Typography fontWeight={700} sx={{ color: getPorcentajeColor(pct), minWidth: 45 }}>
+                        <Paper variant="outlined" sx={{ p: 2, borderTop: `4px solid ${color}`, borderRadius: 2 }}>
+                          <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                            <Box>
+                              <Typography variant="subtitle2" fontWeight={700}>{label}</Typography>
+                              <Typography variant="caption" color="textSecondary">Peso: {peso}%</Typography>
+                            </Box>
+                            <Typography variant="h5" fontWeight={800} sx={{ color: pColor }}>
                               {pct.toFixed(0)}%
                             </Typography>
                           </Box>
-                          <Typography variant="body2" color="textSecondary" mt={0.5}>
-                            {cumplidos}/{total} ítems cumplidos
-                          </Typography>
+                          <Box mt={1.5}>
+                            <LinearProgress variant="determinate" value={pct}
+                              sx={{ height: 8, borderRadius: 4, bgcolor: `${pColor}22`,
+                                '& .MuiLinearProgress-bar': { bgcolor: pColor } }} />
+                          </Box>
+                          <Box display="flex" justifyContent="space-between" mt={1}>
+                            <Box display="flex" alignItems="center" gap={0.5}>
+                              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#4caf50' }} />
+                              <Typography variant="caption" color="textSecondary">{cumplidos} cumplidos</Typography>
+                            </Box>
+                            <Box display="flex" alignItems="center" gap={0.5}>
+                              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#f44336' }} />
+                              <Typography variant="caption" color="textSecondary">{incumplidos} incumplidos</Typography>
+                            </Box>
+                          </Box>
                         </Paper>
                       </Grid>
                     );
