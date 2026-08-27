@@ -101,7 +101,7 @@ export default function Dashboard() {
       const [statsRes, mesRes, localesRes] = await Promise.all([
         api.get('/estadisticas/dashboard'),
         api.get('/revisiones/estadisticas-por-local').catch(() => ({ data: {} })),
-        api.get('/locales/activos').catch(() => ({ data: [] })),
+        api.get('/estadisticas/mis-locales').catch(() => ({ data: [] })),
       ]);
       setStats(statsRes.data);
       setRevisionesMes(mesRes.data || {});
