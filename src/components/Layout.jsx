@@ -82,15 +82,20 @@ export default function Layout() {
             boxSizing: 'border-box',
             borderRight: '1px solid #f0f0f0',
             zIndex: (theme) => theme.zIndex.drawer,
-            // 🔥 SOLUCIÓN: Padding superior para que el menú no quede debajo del AppBar
-            paddingTop: '64px', // Altura estándar del AppBar en desktop
-            '@media (max-width:600px)': {
-              paddingTop: '56px', // Altura del AppBar en móvil
-            }
+            // 🔥 SOLUCIÓN 2: Eliminamos el paddingTop y usaremos un div espaciador
           },
         }}
       >
-        {/* ELIMINAMOS EL <Toolbar /> QUE ESTABA AQUÍ */}
+        {/* 🔥 NUEVO: Div espaciador en lugar de Toolbar */}
+        <Box 
+          sx={{ 
+            height: '64px', // Altura estándar del AppBar en desktop
+            flexShrink: 0,
+            '@media (max-width:600px)': {
+              height: '56px', // Altura del AppBar en móvil
+            }
+          }} 
+        />
         
         <Box sx={{ overflow: 'auto', pt: 1 }}>
           <List>
