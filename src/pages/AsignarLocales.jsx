@@ -1,86 +1,78 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Box,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Typography,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Chip,
-  CircularProgress,
-  Alert,
-  Checkbox,
-  FormControlLabel,
-  FormGroup,
+  Box, Paper, Table, TableBody, TableCell, TableContainer,
+  TableHead, TableRow, Typography, Button, Dialog, DialogTitle,
+  DialogContent, DialogActions, Chip, CircularProgress, Alert,
+  Grid, Card, CardContent, Checkbox, FormControlLabel,
+  Divider, Tooltip, Avatar,
 } from '@mui/material';
-import { Assignment as AssignmentIcon, Save as SaveIcon } from '@mui/icons-material';
+import {
+  Assignment as AssignmentIcon,
+  Store as StoreIcon,
+  CheckCircle as CheckIcon,
+} from '@mui/icons-material';
 import api from '../services/api';
+
+const ROL_COLORS = {
+  supervisor: '#2196f3',
+  administrador: '#f59e0b',
+  gerencia: '#7c3aed',
+};
 
 export default function AsignarLocales() {
   const [usuarios, setUsuarios] = useState([]);
   const [locales, setLocales] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedUsuario, setSelectedUsuario] = useState(null);
   const [selectedLocales, setSelectedLocales] = useState([]);
+  const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState({ text: '', type: 'success' });
-  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { cargarDatos(); }, []);
 
   const cargarDatos = async () => {
     try {
-      setLoading(true);
-      // Obtener usuarios (todos o solo administradores)
       const [usuariosRes, localesRes] = await Promise.all([
-        api.get('/usuarios'),  // Obtener todos los usuarios
-        api.get('/locales')
+        api.get('/usuarios'),
+        api.get('/locales'),
       ]);
-      
-      // Filtrar solo administradores y supervisores (pueden tener locales asignados)
-      const usuariosFiltrados = usuariosRes.data.filter(
-        u => u.rol === 'administrador' || u.rol === 'supervisor'
+      // Mostrar supervisores y administradores (los que pueden tener locales asignados)
+      const filtrados = usuariosRes.data.filter(u =>
+        ['supervisor', 'administrador'].includes(u.rol) && u.activo
       );
-      
-      setUsuarios(usuariosFiltrados);
+      setUsuarios(filtrados);
       setLocales(localesRes.data);
     } catch (error) {
       console.error('Error cargando datos:', error);
-      showMsg(error.response?.data?.error || 'Error al cargar datos', 'error');
+      showMsg('Error al cargar datos', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const abrirAsignacion = async (user) => {
-    setSelectedUser(user);
-    // Cargar locales actualmente asignados
+  const abrirAsignacion = async (usuario) => {
+    setSelectedUsuario(usuario);
     try {
-      // Los locales asignados vienen en el objeto usuario
-      const localesAsignados = user.localesAsignados?.map(l => l._id || l) || [];
-      setSelectedLocales(localesAsignados);
+      const response = await api.get(`/usuarios/${usuario._id}/locales`);
+      setSelectedLocales(response.data.map(l => l._id || l));
       setDialogOpen(true);
     } catch (error) {
-      console.error('Error:', error);
-      showMsg('Error al cargar locales asignados', 'error');
+      console.error('Error cargando locales asignados:', error);
+      setSelectedLocales([]);
+      setDialogOpen(true);
     }
   };
 
-  const handleToggleLocal = (localId) => {
-    setSelectedLocales(prev => 
+  const toggleLocal = (localId) => {
+    setSelectedLocales(prev =>
       prev.includes(localId)
         ? prev.filter(id => id !== localId)
         : [...prev, localId]
     );
   };
 
-  const handleSelectAll = () => {
+  const seleccionarTodos = () => {
     if (selectedLocales.length === locales.length) {
       setSelectedLocales([]);
     } else {
@@ -89,199 +81,211 @@ export default function AsignarLocales() {
   };
 
   const handleGuardar = async () => {
-    setSaving(true);
+    setGuardando(true);
     try {
-      await api.post(`/usuarios/${selectedUser._id}/asignar-locales`, {
-        localesIds: selectedLocales
+      await api.post(`/usuarios/${selectedUsuario._id}/asignar-locales`, {
+        localesIds: selectedLocales,
       });
-      
-      showMsg(`Locales asignados correctamente a ${selectedUser.nombre}`, 'success');
+      showMsg(`Locales asignados correctamente a ${selectedUsuario.nombre}`);
       setDialogOpen(false);
-      
-      // Recargar datos para actualizar la tabla
-      await cargarDatos();
+      cargarDatos();
     } catch (error) {
-      console.error('Error asignando locales:', error);
       showMsg(error.response?.data?.error || 'Error al asignar locales', 'error');
     } finally {
-      setSaving(false);
+      setGuardando(false);
     }
   };
 
   const showMsg = (text, type = 'success') => {
     setMensaje({ text, type });
-    setTimeout(() => setMensaje({ text: '', type: 'success' }), 3000);
+    setTimeout(() => setMensaje({ text: '', type: 'success' }), 4000);
   };
 
-  // Obtener nombres de locales asignados
-  const getLocalesNombres = (user) => {
-    if (!user.localesAsignados || user.localesAsignados.length === 0) {
-      return 'Sin locales asignados';
-    }
-    return user.localesAsignados.map(l => typeof l === 'object' ? l.nombre : l).join(', ');
+  const getLocalesAsignados = (usuario) => {
+    // Intentar obtener localesAsignados del usuario directamente
+    return usuario.localesAsignados?.length || 0;
   };
-
-  useEffect(() => {
-    cargarDatos();
-  }, []);
 
   if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
+    return <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px"><CircularProgress /></Box>;
   }
 
   return (
     <Box>
-      <Typography variant="h4" fontWeight={600} gutterBottom>
-        Asignación de Locales
-      </Typography>
-      <Typography variant="body2" color="textSecondary" gutterBottom>
-        Administradores y Supervisores: selecciona los locales que cada usuario podrá supervisar
+      <Typography variant="h4" fontWeight={600} mb={1}>Asignar Locales</Typography>
+      <Typography variant="body2" color="textSecondary" mb={3}>
+        Asigna uno o más locales a supervisores y administradores para que puedan gestionar sus revisiones.
       </Typography>
 
-      {mensaje.text && (
-        <Alert severity={mensaje.type} sx={{ mb: 2 }} onClose={() => setMensaje({ text: '', type: 'success' })}>
-          {mensaje.text}
-        </Alert>
-      )}
+      {mensaje.text && <Alert severity={mensaje.type} sx={{ mb: 2 }}>{mensaje.text}</Alert>}
 
-      {usuarios.length === 0 ? (
-        <Paper sx={{ p: 4, textAlign: 'center' }}>
-          <Typography color="textSecondary">
-            No hay administradores o supervisores registrados.
-            Crea usuarios con rol "administrador" o "supervisor" primero.
-          </Typography>
-        </Paper>
-      ) : (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow sx={{ backgroundColor: '#d32f2f' }}>
-                <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Usuario</TableCell>
-                <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Email</TableCell>
-                <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Rol</TableCell>
-                <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Locales Asignados</TableCell>
-                <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Acciones</TableCell>
+      {/* Resumen rápido */}
+      <Grid container spacing={2} mb={3}>
+        <Grid item xs={12} sm={4}>
+          <Card sx={{ bgcolor: '#fff5f5', border: '1px solid #ffcdd2' }}>
+            <CardContent sx={{ py: 1.5 }}>
+              <Typography variant="caption" color="textSecondary">Total usuarios</Typography>
+              <Typography variant="h5" fontWeight={700} color="#d32f2f">{usuarios.length}</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <Card sx={{ bgcolor: '#f5f8ff', border: '1px solid #bbdefb' }}>
+            <CardContent sx={{ py: 1.5 }}>
+              <Typography variant="caption" color="textSecondary">Total locales</Typography>
+              <Typography variant="h5" fontWeight={700} color="#2196f3">{locales.length}</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <Card sx={{ bgcolor: '#f5fff5', border: '1px solid #c8e6c9' }}>
+            <CardContent sx={{ py: 1.5 }}>
+              <Typography variant="caption" color="textSecondary">Con asignación</Typography>
+              <Typography variant="h5" fontWeight={700} color="#4caf50">
+                {usuarios.filter(u => u.localesAsignados?.length > 0).length}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow sx={{ backgroundColor: '#d32f2f' }}>
+              <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Usuario</TableCell>
+              <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Rol</TableCell>
+              <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Locales Asignados</TableCell>
+              <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Acción</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {usuarios.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                  No hay supervisores ni administradores activos
+                </TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {usuarios.map((user) => (
-                <TableRow key={user._id} hover>
-                  <TableCell>
-                    <strong>{user.nombre}</strong>
-                  </TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>
-                    <Chip 
-                      label={user.rol} 
-                      size="small" 
-                      color={user.rol === 'administrador' ? 'warning' : 'primary'} 
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {user.localesAsignados && user.localesAsignados.length > 0 ? (
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {user.localesAsignados.map((local, idx) => {
-                          const localNombre = typeof local === 'object' ? local.nombre : local;
-                          return (
-                            <Chip 
-                              key={idx} 
-                              label={localNombre} 
-                              size="small" 
-                              variant="outlined" 
-                            />
-                          );
-                        })}
+            ) : (
+              usuarios.map((usuario) => {
+                const localesAsignados = usuario.localesAsignados || [];
+                return (
+                  <TableRow key={usuario._id} hover>
+                    <TableCell>
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <Avatar sx={{ width: 32, height: 32, bgcolor: ROL_COLORS[usuario.rol] || '#999', fontSize: 13 }}>
+                          {usuario.nombre?.[0]?.toUpperCase()}
+                        </Avatar>
+                        <Box>
+                          <Typography variant="body2" fontWeight={600}>{usuario.nombre}</Typography>
+                          <Typography variant="caption" color="textSecondary">{usuario.email}</Typography>
+                        </Box>
                       </Box>
-                    ) : (
-                      <Typography variant="caption" color="textSecondary">
-                        Sin locales asignados
-                      </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={<AssignmentIcon />}
-                      onClick={() => abrirAsignacion(user)}
-                      sx={{ borderColor: '#d32f2f', color: '#d32f2f' }}
-                    >
-                      Asignar Locales
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
+                    </TableCell>
+                    <TableCell>
+                      <Chip label={usuario.rol} size="small"
+                        sx={{ bgcolor: ROL_COLORS[usuario.rol], color: '#fff', fontWeight: 600 }} />
+                    </TableCell>
+                    <TableCell>
+                      {localesAsignados.length === 0 ? (
+                        <Typography variant="caption" color="textSecondary">Sin asignación</Typography>
+                      ) : (
+                        <Box display="flex" flexWrap="wrap" gap={0.5}>
+                          {localesAsignados.slice(0, 3).map((local, i) => (
+                            <Chip key={i} label={local.nombre || local}
+                              size="small" variant="outlined" color="primary" />
+                          ))}
+                          {localesAsignados.length > 3 && (
+                            <Chip label={`+${localesAsignados.length - 3} más`} size="small" />
+                          )}
+                        </Box>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<AssignmentIcon />}
+                        onClick={() => abrirAsignacion(usuario)}
+                        sx={{ borderColor: '#d32f2f', color: '#d32f2f' }}
+                      >
+                        Asignar Locales
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
-      {/* Diálogo de asignación */}
-      <Dialog 
-        open={dialogOpen} 
-        onClose={() => !saving && setDialogOpen(false)} 
-        maxWidth="md" 
-        fullWidth
-      >
+      {/* Dialog asignación */}
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ bgcolor: '#d32f2f', color: '#fff' }}>
-          Asignar Locales a {selectedUser?.nombre}
+          <Box display="flex" alignItems="center" gap={1}>
+            <StoreIcon />
+            <Box>
+              <Typography variant="h6">Asignar Locales</Typography>
+              <Typography variant="caption" sx={{ opacity: 0.85 }}>
+                {selectedUsuario?.nombre} — {selectedUsuario?.rol}
+              </Typography>
+            </Box>
+          </Box>
         </DialogTitle>
         <DialogContent sx={{ pt: 2 }}>
-          <Typography variant="body2" color="textSecondary" gutterBottom>
-            Selecciona los locales que este usuario podrá supervisar:
-          </Typography>
-          
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={selectedLocales.length === locales.length && locales.length > 0}
-                indeterminate={selectedLocales.length > 0 && selectedLocales.length < locales.length}
-                onChange={handleSelectAll}
-              />
-            }
-            label="Seleccionar todos los locales"
-            sx={{ mb: 2 }}
-          />
-          
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 2, maxHeight: 400, overflow: 'auto' }}>
-            {locales.map((local) => (
-              <Chip
-                key={local._id}
-                label={local.nombre}
-                onClick={() => handleToggleLocal(local._id)}
-                color={selectedLocales.includes(local._id) ? 'primary' : 'default'}
-                sx={{ 
-                  cursor: 'pointer',
-                  '&:hover': { opacity: 0.8 },
-                  bgcolor: selectedLocales.includes(local._id) ? '#d32f2f' : undefined,
-                  color: selectedLocales.includes(local._id) ? '#fff' : undefined,
-                }}
-              />
-            ))}
-          </Box>
-          
-          {locales.length === 0 && (
-            <Typography color="error" sx={{ mt: 2 }}>
-              No hay locales registrados. Crea locales primero.
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+            <Typography variant="body2" color="textSecondary">
+              {selectedLocales.length} de {locales.length} locales seleccionados
             </Typography>
-          )}
+            <Button size="small" onClick={seleccionarTodos} variant="outlined" sx={{ fontSize: 11 }}>
+              {selectedLocales.length === locales.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
+            </Button>
+          </Box>
+          <Divider sx={{ mb: 2 }} />
+          <Grid container spacing={1}>
+            {locales.map((local) => {
+              const asignado = selectedLocales.includes(local._id);
+              return (
+                <Grid item xs={12} sm={6} key={local._id}>
+                  <Paper
+                    variant="outlined"
+                    onClick={() => toggleLocal(local._id)}
+                    sx={{
+                      p: 1.5, cursor: 'pointer',
+                      borderColor: asignado ? '#d32f2f' : '#e0e0e0',
+                      bgcolor: asignado ? '#fff5f5' : 'white',
+                      transition: 'all 0.15s',
+                      '&:hover': { borderColor: '#d32f2f', bgcolor: '#fff5f5' },
+                    }}
+                  >
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <Checkbox
+                        checked={asignado}
+                        size="small"
+                        sx={{ p: 0, color: '#d32f2f', '&.Mui-checked': { color: '#d32f2f' } }}
+                        onChange={() => toggleLocal(local._id)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <Box flex={1}>
+                        <Typography variant="body2" fontWeight={600}>{local.nombre}</Typography>
+                        {local.ciudad && (
+                          <Typography variant="caption" color="textSecondary">{local.ciudad}</Typography>
+                        )}
+                      </Box>
+                      {asignado && <CheckIcon fontSize="small" sx={{ color: '#d32f2f' }} />}
+                    </Box>
+                  </Paper>
+                </Grid>
+              );
+            })}
+          </Grid>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDialogOpen(false)} disabled={saving}>
-            Cancelar
-          </Button>
-          <Button 
-            onClick={handleGuardar} 
-            variant="contained" 
-            disabled={saving}
-            sx={{ bgcolor: '#d32f2f' }}
-            startIcon={saving ? <CircularProgress size={20} /> : <SaveIcon />}
-          >
-            {saving ? 'Guardando...' : 'Guardar Asignación'}
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setDialogOpen(false)}>Cancelar</Button>
+          <Button onClick={handleGuardar} variant="contained" sx={{ bgcolor: '#d32f2f' }}
+            disabled={guardando}>
+            {guardando ? <CircularProgress size={20} color="inherit" /> : 'Guardar Asignación'}
           </Button>
         </DialogActions>
       </Dialog>

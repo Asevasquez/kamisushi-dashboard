@@ -3,12 +3,17 @@ import {
   Box, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Typography, Chip, Button, Dialog,
   DialogTitle, DialogContent, DialogActions, TextField,
-  MenuItem, CircularProgress, Alert, IconButton,
+  MenuItem, CircularProgress, Alert, IconButton, Tooltip,
+  Switch, FormControlLabel, Divider,
 } from '@mui/material';
-import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import {
+  Add as AddIcon,
+  Delete as DeleteIcon,
+  Edit as EditIcon,
+} from '@mui/icons-material';
 import api from '../services/api';
 
-const emptyForm = { nombre: '', email: '', password: '', rol: 'supervisor' };
+const emptyForm = { nombre: '', email: '', password: '', rol: 'supervisor', supervisorId: '', activo: true };
 
 const ROL_COLORS = {
   master: 'error',
@@ -22,9 +27,11 @@ export default function Usuarios() {
   const [supervisores, setSupervisores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null, nombre: '' });
   const [formData, setFormData] = useState(emptyForm);
   const [mensaje, setMensaje] = useState({ text: '', type: 'success' });
+  const [guardando, setGuardando] = useState(false);
 
   useEffect(() => { cargarDatos(); }, []);
 
@@ -38,27 +45,76 @@ export default function Usuarios() {
       setSupervisores(supervisoresRes.data);
     } catch (error) {
       console.error('Error cargando datos:', error);
+      showMsg('Error al cargar datos', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCrearUsuario = async () => {
+  const handleAbrir = (usuario = null) => {
+    if (usuario) {
+      setFormData({
+        nombre: usuario.nombre,
+        email: usuario.email,
+        password: '',
+        rol: usuario.rol,
+        supervisorId: usuario.supervisorId || '',
+        activo: usuario.activo,
+      });
+      setEditingId(usuario._id);
+    } else {
+      setFormData(emptyForm);
+      setEditingId(null);
+    }
+    setDialogOpen(true);
+  };
+
+  const handleGuardar = async () => {
+    if (!formData.nombre || !formData.email) {
+      showMsg('Nombre y email son requeridos', 'error');
+      return;
+    }
+    if (!editingId && !formData.password) {
+      showMsg('La contraseña es requerida para nuevos usuarios', 'error');
+      return;
+    }
+
+    setGuardando(true);
     try {
-      await api.post('/usuarios', formData);
-      showMsg('Usuario creado exitosamente');
+      const datos = { ...formData };
+      // Si editando y no cambió contraseña, no enviarla
+      if (editingId && !datos.password.trim()) {
+        delete datos.password;
+      }
+
+      if (editingId) {
+        await api.put(`/usuarios/${editingId}`, datos);
+        showMsg('Usuario actualizado correctamente');
+      } else {
+        await api.post('/usuarios', datos);
+        showMsg('Usuario creado exitosamente');
+      }
       setDialogOpen(false);
       setFormData(emptyForm);
+      setEditingId(null);
       cargarDatos();
     } catch (error) {
-      showMsg(error.response?.data?.error || 'Error al crear usuario', 'error');
+      showMsg(error.response?.data?.error || 'Error al guardar', 'error');
+    } finally {
+      setGuardando(false);
     }
   };
 
   const handleEliminar = async () => {
-    // El backend no tiene DELETE /usuarios, pero lo preparamos para cuando se agregue
-    showMsg('Funcionalidad de eliminación no disponible en el backend aún', 'warning');
-    setDeleteDialog({ open: false, id: null, nombre: '' });
+    try {
+      await api.delete(`/usuarios/${deleteDialog.id}`);
+      showMsg('Usuario desactivado correctamente');
+      setDeleteDialog({ open: false, id: null, nombre: '' });
+      cargarDatos();
+    } catch (error) {
+      showMsg(error.response?.data?.error || 'Error al eliminar', 'error');
+      setDeleteDialog({ open: false, id: null, nombre: '' });
+    }
   };
 
   const showMsg = (text, type = 'success') => {
@@ -74,7 +130,8 @@ export default function Usuarios() {
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4" fontWeight={600}>Gestión de Usuarios</Typography>
-        <Button variant="contained" startIcon={<AddIcon />} sx={{ bgcolor: '#d32f2f' }} onClick={() => setDialogOpen(true)}>
+        <Button variant="contained" startIcon={<AddIcon />} sx={{ bgcolor: '#d32f2f' }}
+          onClick={() => handleAbrir()}>
           Nuevo Usuario
         </Button>
       </Box>
@@ -94,24 +151,32 @@ export default function Usuarios() {
           </TableHead>
           <TableBody>
             {usuarios.map((u) => (
-              <TableRow key={u._id} hover>
+              <TableRow key={u._id} hover sx={{ opacity: u.activo ? 1 : 0.5 }}>
                 <TableCell><strong>{u.nombre}</strong></TableCell>
                 <TableCell>{u.email}</TableCell>
                 <TableCell>
                   <Chip label={u.rol} color={ROL_COLORS[u.rol] || 'default'} size="small" />
                 </TableCell>
                 <TableCell>
-                  <Chip label={u.activo ? 'Activo' : 'Inactivo'} color={u.activo ? 'success' : 'error'} size="small" />
+                  <Chip label={u.activo ? 'Activo' : 'Inactivo'}
+                    color={u.activo ? 'success' : 'error'} size="small" />
                 </TableCell>
                 <TableCell>
-                  <IconButton
-                    size="small" color="error"
-                    onClick={() => setDeleteDialog({ open: true, id: u._id, nombre: u.nombre })}
-                    title="Eliminar"
-                    disabled={u.rol === 'master'}
-                  >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
+                  <Tooltip title="Editar">
+                    <IconButton size="small" color="primary" onClick={() => handleAbrir(u)}
+                      disabled={u.rol === 'master'}>
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title={u.activo ? 'Desactivar' : 'Ya desactivado'}>
+                    <span>
+                      <IconButton size="small" color="error"
+                        onClick={() => setDeleteDialog({ open: true, id: u._id, nombre: u.nombre })}
+                        disabled={u.rol === 'master' || !u.activo}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
                 </TableCell>
               </TableRow>
             ))}
@@ -119,16 +184,19 @@ export default function Usuarios() {
         </Table>
       </TableContainer>
 
-      {/* Dialog crear usuario */}
+      {/* Dialog crear/editar */}
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Crear Nuevo Usuario</DialogTitle>
+        <DialogTitle>{editingId ? 'Editar Usuario' : 'Crear Nuevo Usuario'}</DialogTitle>
         <DialogContent>
-          <TextField fullWidth label="Nombre" margin="normal" value={formData.nombre}
+          <TextField fullWidth label="Nombre completo" margin="normal" value={formData.nombre}
             onChange={(e) => setFormData({ ...formData, nombre: e.target.value })} />
           <TextField fullWidth label="Email" type="email" margin="normal" value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
-          <TextField fullWidth label="Contraseña" type="password" margin="normal" value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
+          <TextField fullWidth
+            label={editingId ? 'Nueva contraseña (dejar vacío para no cambiar)' : 'Contraseña'}
+            type="password" margin="normal" value={formData.password}
+            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            helperText={editingId ? 'Solo completa si deseas cambiar la contraseña' : 'Mínimo 6 caracteres'} />
           <TextField select fullWidth label="Rol" margin="normal" value={formData.rol}
             onChange={(e) => setFormData({ ...formData, rol: e.target.value, supervisorId: '' })}>
             <MenuItem value="supervisor">Supervisor</MenuItem>
@@ -146,26 +214,38 @@ export default function Usuarios() {
               ))}
             </TextField>
           )}
+          {editingId && (
+            <FormControlLabel
+              control={
+                <Switch checked={formData.activo}
+                  onChange={(e) => setFormData({ ...formData, activo: e.target.checked })} />
+              }
+              label={formData.activo ? 'Usuario activo' : 'Usuario inactivo'}
+              sx={{ mt: 1 }}
+            />
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialogOpen(false)}>Cancelar</Button>
-          <Button onClick={handleCrearUsuario} variant="contained" sx={{ bgcolor: '#d32f2f' }}
-            disabled={!formData.nombre || !formData.email || !formData.password}>
-            Crear
+          <Button onClick={handleGuardar} variant="contained" sx={{ bgcolor: '#d32f2f' }}
+            disabled={guardando || !formData.nombre || !formData.email}>
+            {guardando ? <CircularProgress size={20} color="inherit" /> : editingId ? 'Actualizar' : 'Crear'}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Dialog eliminar */}
+      {/* Dialog desactivar */}
       <Dialog open={deleteDialog.open} onClose={() => setDeleteDialog({ open: false, id: null, nombre: '' })}>
-        <DialogTitle>Confirmar Eliminación</DialogTitle>
+        <DialogTitle>Confirmar Desactivación</DialogTitle>
         <DialogContent>
-          <Typography>¿Eliminar al usuario <strong>{deleteDialog.nombre}</strong>?</Typography>
-          <Typography variant="caption" color="error">Esta acción no se puede deshacer.</Typography>
+          <Typography>¿Desactivar al usuario <strong>{deleteDialog.nombre}</strong>?</Typography>
+          <Typography variant="caption" color="textSecondary" display="block" mt={1}>
+            El usuario no podrá iniciar sesión pero su historial de revisiones se conserva.
+          </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialog({ open: false, id: null, nombre: '' })}>Cancelar</Button>
-          <Button onClick={handleEliminar} color="error" variant="contained">Eliminar</Button>
+          <Button onClick={handleEliminar} color="error" variant="contained">Desactivar</Button>
         </DialogActions>
       </Dialog>
     </Box>
