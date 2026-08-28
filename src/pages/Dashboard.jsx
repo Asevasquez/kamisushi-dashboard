@@ -1,24 +1,35 @@
+// dashboard/src/pages/Dashboard.jsx
 import React, { useState, useEffect } from 'react';
 import {
-  Box, Grid, Card, CardContent, Typography, CircularProgress,
-  Paper, IconButton, Tooltip, LinearProgress, Alert, Divider,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  Box,
+  Grid,
+  Card,
+  CardContent,
+  Typography,
+  CircularProgress,
+  Paper,
+  IconButton,
+  Tooltip,
+  LinearProgress,
+  Alert,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   Chip,
 } from '@mui/material';
 import {
-  TrendingUp as TrendingUpIcon,
-  Store as StoreIcon,
-  Assignment as AssignmentIcon,
   Warning as WarningIcon,
   Refresh as RefreshIcon,
   CheckCircle as CheckCircleIcon,
-  EmojiEvents as TrophyIcon,
-  People as PeopleIcon,
   Cancel as CancelIcon,
 } from '@mui/icons-material';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
+// ─── Helpers ──────────────────────────────────────────────
 const getPColor = (p) => {
   if (p >= 95) return '#10b981';
   if (p >= 80) return '#3b82f6';
@@ -43,11 +54,14 @@ const CAT_BG = {
   'PÉSIMO':    { bg: '#ffebee', color: '#b71c1c' },
 };
 
-function KPICard({ title, value, subtitle, color, icon }) {
+// ─── Componente KPI Card ──────────────────────────────────
+function KPICard({ title, value, subtitle, color }) {
   return (
     <Card sx={{
-      borderRadius: 2, borderTop: `3px solid ${color}`,
-      boxShadow: '0 1px 4px rgba(0,0,0,0.06)', height: '100%',
+      borderRadius: 2,
+      borderTop: `3px solid ${color}`,
+      boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+      height: '100%',
     }}>
       <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
         <Typography variant="caption" color="textSecondary" sx={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.3 }}>
@@ -66,6 +80,7 @@ function KPICard({ title, value, subtitle, color, icon }) {
   );
 }
 
+// ─── Componente principal ──────────────────────────────────
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [revisionesMes, setRevisionesMes] = useState({});
@@ -83,7 +98,7 @@ export default function Dashboard() {
     else setLoading(true);
     try {
       const [statsRes, mesRes, localesRes] = await Promise.all([
-        api.get('/estadisticas/dashboard'),
+        api.get('/estadisticas/dashboard').catch(() => ({ data: {} })),
         api.get('/revisiones/estadisticas-por-local').catch(() => ({ data: {} })),
         api.get('/estadisticas/mis-locales').catch(() => ({ data: [] })),
       ]);
@@ -92,19 +107,29 @@ export default function Dashboard() {
       setRevisionesMes(mesRes.data || {});
       setLocalesActivos(localesRes.data || []);
       setUltimaAct(new Date());
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); setRefreshing(false); }
+    } catch (e) { 
+      console.error('Error cargando datos:', e); 
+    } finally { 
+      setLoading(false); 
+      setRefreshing(false); 
+    }
   };
 
+  // ─── Cálculos ─────────────────────────────────────────────
   const localesSinRevision = localesActivos.filter(l => !Object.keys(revisionesMes).includes(l.nombre));
   const localesCriticos = Object.entries(revisionesMes).filter(([, d]) => d.promedioPorcentaje < 60);
   const promedioGeneral = parseFloat(stats?.resumen?.promedioGeneral || 0);
   const totalRevisiones = stats?.resumen?.totalRevisiones || 0;
-  const supervisores = (stats?.estadisticasSupervisores || []).filter(s => s.supervisorNombre);
+  
   const localesOrdenados = Object.entries(revisionesMes)
     .sort(([, a], [, b]) => b.promedioPorcentaje - a.promedioPorcentaje);
   const mejorLocal = localesOrdenados[0];
   const peorLocal = localesOrdenados[localesOrdenados.length - 1];
+
+  // Supervisores desde stats
+  const supervisores = (stats?.estadisticasSupervisores || [])
+    .filter(s => s.supervisorNombre)
+    .sort((a, b) => parseFloat(b.promedio) - parseFloat(a.promedio));
 
   if (loading) {
     return (
@@ -140,7 +165,7 @@ export default function Dashboard() {
         </Alert>
       )}
 
-      {/* ─── KPI Cards ───────────────────────────────────── */}
+      {/* ─── Header ──────────────────────────────────────── */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
         <Typography variant="h5" fontWeight={500} color="text.primary">
           Panel de Control
@@ -159,33 +184,44 @@ export default function Dashboard() {
         </Box>
       </Box>
 
+      {/* ─── KPI Cards ───────────────────────────────────── */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <KPICard title="TOTAL REVISIONES" value={totalRevisiones}
-            subtitle="Este mes" color="#d32f2f" icon={<AssignmentIcon />} />
+          <KPICard 
+            title="TOTAL REVISIONES" 
+            value={totalRevisiones}
+            subtitle="Este mes" 
+            color="#d32f2f" 
+          />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <KPICard title="PROMEDIO GENERAL"
+          <KPICard 
+            title="PROMEDIO GENERAL"
             value={`${promedioGeneral.toFixed(1)}%`}
             subtitle={getCat(promedioGeneral)}
-            color={getPColor(promedioGeneral)} />
+            color={getPColor(promedioGeneral)} 
+          />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <KPICard title="MEJOR LOCAL"
+          <KPICard 
+            title="MEJOR LOCAL"
             value={mejorLocal ? mejorLocal[0].substring(0, 12) : '—'}
             subtitle={mejorLocal ? `${mejorLocal[1].promedioPorcentaje.toFixed(1)}%` : ''}
-            color="#10b981" />
+            color="#10b981" 
+          />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <KPICard title="LOCALES REVISADOS"
+          <KPICard 
+            title="LOCALES REVISADOS"
             value={`${Object.keys(revisionesMes).length}/${localesActivos.length}`}
             subtitle={localesSinRevision.length > 0 ? `${localesSinRevision.length} sin revisar` : 'Todos revisados'}
-            color="#3b82f6" />
+            color="#3b82f6" 
+          />
         </Grid>
       </Grid>
 
-      {/* ─── Tabla locales del mes ───────────────────────── */}
-      {localesOrdenados.length > 0 && (
+      {/* ─── Tabla de revisiones del mes ────────────────── */}
+      {Object.keys(revisionesMes).length > 0 ? (
         <Paper sx={{ borderRadius: 2, overflow: 'hidden', mb: 3, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
           <Box sx={{ bgcolor: '#d32f2f', px: 2, py: 1.5 }}>
             <Typography variant="subtitle2" color="white" fontWeight={500}>
@@ -220,9 +256,16 @@ export default function Dashboard() {
                         </Box>
                       </TableCell>
                       <TableCell sx={{ py: 1.2 }}>
-                        <LinearProgress variant="determinate" value={pct}
-                          sx={{ height: 6, borderRadius: 3, bgcolor: `${color}22`,
-                            '& .MuiLinearProgress-bar': { bgcolor: color } }} />
+                        <LinearProgress 
+                          variant="determinate" 
+                          value={pct}
+                          sx={{ 
+                            height: 6, 
+                            borderRadius: 3, 
+                            bgcolor: `${color}22`,
+                            '& .MuiLinearProgress-bar': { bgcolor: color } 
+                          }} 
+                        />
                       </TableCell>
                       <TableCell sx={{ py: 1.2 }}>
                         <Typography variant="body2" fontWeight={500} sx={{ color }}>
@@ -230,9 +273,16 @@ export default function Dashboard() {
                         </Typography>
                       </TableCell>
                       <TableCell sx={{ py: 1.2 }}>
-                        <Box sx={{ display: 'inline-block', bgcolor: catStyle.bg,
-                          color: catStyle.color, fontSize: 10, fontWeight: 600,
-                          px: 1, py: 0.3, borderRadius: 1 }}>
+                        <Box sx={{ 
+                          display: 'inline-block', 
+                          bgcolor: catStyle.bg,
+                          color: catStyle.color, 
+                          fontSize: 10, 
+                          fontWeight: 600,
+                          px: 1, 
+                          py: 0.3, 
+                          borderRadius: 1 
+                        }}>
                           {cat}
                         </Box>
                       </TableCell>
@@ -253,14 +303,18 @@ export default function Dashboard() {
             </Table>
           </TableContainer>
         </Paper>
+      ) : (
+        <Paper sx={{ p: 3, textAlign: 'center', borderRadius: 2, mb: 3 }}>
+          <Typography color="textSecondary">No hay revisiones registradas este mes.</Typography>
+        </Paper>
       )}
 
-      {/* ─── Fila inferior: Destacados + Sin revisión ────── */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
+      {/* ─── Fila inferior ────────────────────────────────── */}
+      <Grid container spacing={2}>
         {/* Destacados */}
         {(mejorLocal || peorLocal) && (
           <Grid item xs={12} md={4}>
-            <Paper sx={{ borderRadius: 2, p: 0, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', height: '100%' }}>
+            <Paper sx={{ borderRadius: 2, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', height: '100%' }}>
               <Box sx={{ bgcolor: '#fafafa', borderBottom: '0.5px solid #f0f0f0', px: 2, py: 1.2 }}>
                 <Typography variant="subtitle2" fontWeight={500} color="text.primary">
                   Destacados del mes
@@ -337,24 +391,34 @@ export default function Dashboard() {
               <Box>
                 {supervisores.slice(0, 5).map((sup, i) => {
                   const pct = parseFloat(sup.promedio);
+                  const color = getPColor(pct);
                   return (
                     <Box key={i} display="flex" alignItems="center" gap={1.5} sx={{
                       px: 2, py: 1.2,
                       borderBottom: i < supervisores.slice(0, 5).length - 1 ? '0.5px solid #f0f0f0' : 'none',
                     }}>
-                      <Box sx={{ width: 28, height: 28, borderRadius: '50%', bgcolor: getPColor(pct),
-                        display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Box sx={{ 
+                        width: 28, height: 28, borderRadius: '50%', 
+                        bgcolor: color,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center' 
+                      }}>
                         <Typography sx={{ color: '#fff', fontSize: 11, fontWeight: 600 }}>
                           {sup.supervisorNombre?.[0]?.toUpperCase()}
                         </Typography>
                       </Box>
                       <Box sx={{ flex: 1 }}>
                         <Typography variant="body2" fontWeight={500} noWrap>{sup.supervisorNombre}</Typography>
-                        <LinearProgress variant="determinate" value={pct}
-                          sx={{ height: 4, borderRadius: 2, mt: 0.3, bgcolor: `${getPColor(pct)}22`,
-                            '& .MuiLinearProgress-bar': { bgcolor: getPColor(pct) } }} />
+                        <LinearProgress 
+                          variant="determinate" 
+                          value={pct}
+                          sx={{ 
+                            height: 4, borderRadius: 2, mt: 0.3, 
+                            bgcolor: `${color}22`,
+                            '& .MuiLinearProgress-bar': { bgcolor: color } 
+                          }} 
+                        />
                       </Box>
-                      <Typography variant="caption" fontWeight={500} sx={{ color: getPColor(pct) }}>
+                      <Typography variant="caption" fontWeight={500} sx={{ color: color }}>
                         {pct.toFixed(1)}%
                       </Typography>
                     </Box>
@@ -366,9 +430,9 @@ export default function Dashboard() {
         )}
       </Grid>
 
-      {/* Histórico por local */}
+      {/* ─── Histórico por local ──────────────────────────── */}
       {stats?.estadisticasPorLocal?.length > 0 && (
-        <Paper sx={{ borderRadius: 2, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+        <Paper sx={{ borderRadius: 2, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', mt: 3 }}>
           <Box sx={{ bgcolor: '#424242', px: 2, py: 1.5 }}>
             <Typography variant="subtitle2" color="white" fontWeight={500}>
               Rendimiento histórico por local (12 meses)
@@ -397,18 +461,29 @@ export default function Dashboard() {
                     return (
                       <TableRow key={item.local} hover>
                         <TableCell sx={{ py: 1.2 }}>
-                          <Box sx={{ width: 22, height: 22, borderRadius: '50%', bgcolor: color,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Typography sx={{ color: '#fff', fontSize: 10, fontWeight: 600 }}>{i + 1}</Typography>
+                          <Box sx={{ 
+                            width: 22, height: 22, borderRadius: '50%', 
+                            bgcolor: color,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center' 
+                          }}>
+                            <Typography sx={{ color: '#fff', fontSize: 10, fontWeight: 600 }}>
+                              {i + 1}
+                            </Typography>
                           </Box>
                         </TableCell>
                         <TableCell sx={{ py: 1.2 }}>
                           <Typography variant="body2" fontWeight={500}>{item.local}</Typography>
                         </TableCell>
                         <TableCell sx={{ py: 1.2 }}>
-                          <LinearProgress variant="determinate" value={pct}
-                            sx={{ height: 6, borderRadius: 3, bgcolor: `${color}22`,
-                              '& .MuiLinearProgress-bar': { bgcolor: color } }} />
+                          <LinearProgress 
+                            variant="determinate" 
+                            value={pct}
+                            sx={{ 
+                              height: 6, borderRadius: 3, 
+                              bgcolor: `${color}22`,
+                              '& .MuiLinearProgress-bar': { bgcolor: color } 
+                            }} 
+                          />
                         </TableCell>
                         <TableCell sx={{ py: 1.2 }}>
                           <Typography variant="body2" fontWeight={500} sx={{ color }}>
@@ -416,9 +491,16 @@ export default function Dashboard() {
                           </Typography>
                         </TableCell>
                         <TableCell sx={{ py: 1.2 }}>
-                          <Box sx={{ display: 'inline-block', bgcolor: catStyle.bg,
-                            color: catStyle.color, fontSize: 10, fontWeight: 600,
-                            px: 1, py: 0.3, borderRadius: 1 }}>
+                          <Box sx={{ 
+                            display: 'inline-block', 
+                            bgcolor: catStyle.bg,
+                            color: catStyle.color, 
+                            fontSize: 10, 
+                            fontWeight: 600,
+                            px: 1, 
+                            py: 0.3, 
+                            borderRadius: 1 
+                          }}>
                             {cat}
                           </Box>
                         </TableCell>
@@ -433,12 +515,6 @@ export default function Dashboard() {
               </TableBody>
             </Table>
           </TableContainer>
-        </Paper>
-      )}
-
-      {Object.keys(revisionesMes).length === 0 && !stats && (
-        <Paper sx={{ p: 4, textAlign: 'center', borderRadius: 2 }}>
-          <Typography color="textSecondary">No hay datos disponibles para este mes.</Typography>
         </Paper>
       )}
     </Box>
