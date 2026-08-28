@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, createContext, useContext, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -12,12 +12,9 @@ import Revisiones from './pages/Revisiones';
 import AsignarLocales from './pages/AsignarLocales';
 import Layout from './components/Layout';
 
-const theme = createTheme({
-  palette: {
-    primary: { main: '#d32f2f' },
-    secondary: { main: '#f44336' },
-  },
-});
+// Contexto global del modo oscuro
+export const ColorModeContext = createContext({ toggleColorMode: () => {}, mode: 'light' });
+export const useColorMode = () => useContext(ColorModeContext);
 
 function PrivateRoute({ children, allowedRoles }) {
   const { user, loading } = useAuth();
@@ -45,14 +42,42 @@ function AppRoutes() {
 }
 
 export default function App() {
+  const [mode, setMode] = useState(
+    () => localStorage.getItem('colorMode') || 'light'
+  );
+
+  const colorMode = useMemo(() => ({
+    mode,
+    toggleColorMode: () => {
+      setMode(prev => {
+        const next = prev === 'light' ? 'dark' : 'light';
+        localStorage.setItem('colorMode', next);
+        return next;
+      });
+    },
+  }), [mode]);
+
+  const theme = useMemo(() => createTheme({
+    palette: {
+      mode,
+      primary: { main: '#d32f2f' },
+      secondary: { main: '#f44336' },
+      ...(mode === 'dark' && {
+        background: { default: '#121212', paper: '#1e1e1e' },
+      }),
+    },
+  }), [mode]);
+
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <AuthProvider>
-        <Router>
-          <AppRoutes />
-        </Router>
-      </AuthProvider>
-    </ThemeProvider>
+    <ColorModeContext.Provider value={colorMode}>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <AuthProvider>
+          <Router>
+            <AppRoutes />
+          </Router>
+        </AuthProvider>
+      </ThemeProvider>
+    </ColorModeContext.Provider>
   );
 }

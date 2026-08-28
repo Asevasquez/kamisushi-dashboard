@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  AppBar, Box, Toolbar, Typography, Button, Drawer,
+  AppBar, Box, Toolbar, Typography, Drawer,
   List, ListItem, ListItemIcon, ListItemText, Avatar,
-  Divider, Tooltip, IconButton,
+  Divider, Tooltip, IconButton, useTheme,
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -11,11 +11,12 @@ import {
   ExitToApp as LogoutIcon,
   People as PeopleIcon,
   Assignment as AssignmentIcon,
-  Menu as MenuIcon,
-  RestaurantMenu as SushiIcon,
+  DarkMode as DarkModeIcon,
+  LightMode as LightModeIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useColorMode } from '../App';
 
 const DRAWER_WIDTH = 240;
 
@@ -39,10 +40,11 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { mode, toggleColorMode } = useColorMode();
+  const theme = useTheme();
   const filteredMenu = menuItems.filter(item => item.roles.includes(user?.rol));
   const rolColor = ROL_COLOR[user?.rol] || '#d32f2f';
-  
-  // 🔥 NUEVO: Para calcular dinámicamente la altura del AppBar
+
   const appBarRef = useRef(null);
   const [appBarHeight, setAppBarHeight] = useState(64);
 
@@ -52,12 +54,14 @@ export default function Layout() {
     }
   }, []);
 
+  const isDark = mode === 'dark';
+
   return (
     <Box sx={{ display: 'flex' }}>
       {/* ===== BARRA SUPERIOR ===== */}
-      <AppBar 
+      <AppBar
         ref={appBarRef}
-        position="fixed" 
+        position="fixed"
         sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, bgcolor: '#d32f2f', boxShadow: '0 2px 8px rgba(211,47,47,0.3)' }}
       >
         <Toolbar>
@@ -76,8 +80,14 @@ export default function Layout() {
               <Typography variant="body2" fontWeight={600} lineHeight={1.2}>{user?.nombre}</Typography>
               <Typography variant="caption" sx={{ opacity: 0.8, textTransform: 'capitalize' }}>{user?.rol}</Typography>
             </Box>
+            {/* Toggle modo oscuro */}
+            <Tooltip title={isDark ? 'Modo claro' : 'Modo oscuro'}>
+              <IconButton color="inherit" onClick={toggleColorMode}>
+                {isDark ? <LightModeIcon /> : <DarkModeIcon />}
+              </IconButton>
+            </Tooltip>
             <Tooltip title="Cerrar sesión">
-              <IconButton color="inherit" onClick={logout} sx={{ ml: 1 }}>
+              <IconButton color="inherit" onClick={logout} sx={{ ml: 0.5 }}>
                 <LogoutIcon />
               </IconButton>
             </Tooltip>
@@ -86,52 +96,49 @@ export default function Layout() {
       </AppBar>
 
       {/* ===== MENÚ LATERAL ===== */}
-      <Drawer 
-        variant="permanent" 
+      <Drawer
+        variant="permanent"
         sx={{
-          width: DRAWER_WIDTH, 
+          width: DRAWER_WIDTH,
           flexShrink: 0,
           [`& .MuiDrawer-paper`]: {
-            width: DRAWER_WIDTH, 
+            width: DRAWER_WIDTH,
             boxSizing: 'border-box',
-            borderRight: '1px solid #f0f0f0',
+            borderRight: `1px solid ${isDark ? '#333' : '#f0f0f0'}`,
             zIndex: (theme) => theme.zIndex.drawer,
+            bgcolor: isDark ? '#1e1e1e' : '#fff',
           },
         }}
       >
-        {/* 🔥 NUEVO: Espaciador dinámico basado en la altura real del AppBar */}
         <Box sx={{ height: `${appBarHeight}px`, flexShrink: 0 }} />
-        
+
         <Box sx={{ overflow: 'auto', pt: 1 }}>
           <List>
             {filteredMenu.map((item) => {
               const selected = location.pathname === item.path;
               return (
                 <ListItem
-                  button 
+                  button
                   key={item.path}
                   selected={selected}
                   onClick={() => navigate(item.path)}
                   sx={{
-                    mx: 1, 
-                    mb: 0.5, 
-                    borderRadius: 2, 
-                    width: 'calc(100% - 16px)',
+                    mx: 1, mb: 0.5, borderRadius: 2, width: 'calc(100% - 16px)',
                     '&.Mui-selected': {
                       bgcolor: '#d32f2f',
                       '& .MuiListItemIcon-root': { color: '#fff' },
                       '& .MuiListItemText-primary': { color: '#fff', fontWeight: 700 },
                       '&:hover': { bgcolor: '#b71c1c' },
                     },
-                    '&:hover': { bgcolor: 'rgba(211,47,47,0.08)' },
+                    '&:hover': { bgcolor: isDark ? 'rgba(211,47,47,0.15)' : 'rgba(211,47,47,0.08)' },
                   }}
                 >
-                  <ListItemIcon sx={{ minWidth: 38, color: selected ? '#fff' : '#666' }}>
+                  <ListItemIcon sx={{ minWidth: 38, color: selected ? '#fff' : (isDark ? '#aaa' : '#666') }}>
                     {item.icon}
                   </ListItemIcon>
                   <ListItemText
                     primary={item.label}
-                    primaryTypographyProps={{ fontSize: 14 }}
+                    primaryTypographyProps={{ fontSize: 14, color: selected ? '#fff' : (isDark ? '#e0e0e0' : '#333') }}
                   />
                 </ListItem>
               );
@@ -140,24 +147,18 @@ export default function Layout() {
 
           <Divider sx={{ mx: 2, mt: 2, mb: 1 }} />
 
-          {/* Info usuario en sidebar */}
           <Box sx={{ px: 2, py: 1 }}>
-            <Box sx={{ 
-              p: 1.5, 
-              bgcolor: '#fff5f5', 
-              borderRadius: 2, 
-              border: '1px solid #ffcdd2' 
+            <Box sx={{
+              p: 1.5,
+              bgcolor: isDark ? '#2a1a1a' : '#fff5f5',
+              borderRadius: 2,
+              border: `1px solid ${isDark ? '#5d2020' : '#ffcdd2'}`,
             }}>
               <Typography variant="caption" color="textSecondary" display="block">Sesión activa</Typography>
-              <Typography variant="body2" fontWeight={600} noWrap>{user?.nombre}</Typography>
-              <Box sx={{ 
-                display: 'inline-block', 
-                bgcolor: rolColor, 
-                px: 1, 
-                py: 0.2, 
-                borderRadius: 1, 
-                mt: 0.5 
-              }}>
+              <Typography variant="body2" fontWeight={600} noWrap color={isDark ? '#e0e0e0' : 'text.primary'}>
+                {user?.nombre}
+              </Typography>
+              <Box sx={{ display: 'inline-block', bgcolor: rolColor, px: 1, py: 0.2, borderRadius: 1, mt: 0.5 }}>
                 <Typography variant="caption" color="#fff" fontWeight={700} textTransform="capitalize">
                   {user?.rol}
                 </Typography>
@@ -168,13 +169,11 @@ export default function Layout() {
       </Drawer>
 
       {/* ===== CONTENIDO PRINCIPAL ===== */}
-      <Box component="main" sx={{ 
-        flexGrow: 1, 
-        p: 3, 
-        bgcolor: '#f8fafc', 
-        minHeight: '100vh', 
+      <Box component="main" sx={{
+        flexGrow: 1, p: 3,
+        bgcolor: isDark ? '#121212' : '#f8fafc',
+        minHeight: '100vh',
       }}>
-        {/* 🔥 NUEVO: Espaciador dinámico también para el contenido */}
         <Box sx={{ height: `${appBarHeight}px` }} />
         <Outlet />
       </Box>
