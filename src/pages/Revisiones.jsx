@@ -416,6 +416,9 @@ export default function Revisiones() {
           <Tab label="Secciones" />
           <Tab label={`Fotos (${todasLasFotos.length})`} />
           <Tab label={`Reclamos (${rev?.servicioCliente?.reclamos?.length || 0})`} />
+          {['master', 'gerencia'].includes(user?.rol) && (
+            <Tab label="Ubicación" />
+          )}
         </Tabs>
 
         <DialogContent sx={{ pt: 2, minHeight: 400 }}>
@@ -573,6 +576,134 @@ export default function Revisiones() {
                         </Grid>
                       </Paper>
                     ))
+                  )}
+                </Box>
+              )}
+
+              {/* TAB 4: Ubicación — solo master/gerencia */}
+              {tabDetalle === 4 && ['master', 'gerencia'].includes(user?.rol) && (
+                <Box>
+                  {(!rev?.geolocalizacion?.inicio?.latitude && !rev?.geolocalizacion?.fin?.latitude) ? (
+                    <Box textAlign="center" py={4}>
+                      <Typography color="textSecondary">Sin datos de geolocalización para esta revisión</Typography>
+                      <Typography variant="caption" color="textSecondary" display="block" mt={1}>
+                        Solo las revisiones realizadas con la app actualizada incluyen ubicación
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Grid container spacing={2}>
+                      {/* Inicio */}
+                      {rev?.geolocalizacion?.inicio?.latitude && (
+                        <Grid item xs={12} sm={6}>
+                          <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderTop: '3px solid #4caf50' }}>
+                            <Box display="flex" alignItems="center" gap={1} mb={1.5}>
+                              <Box sx={{ width: 28, height: 28, borderRadius: '50%', bgcolor: '#e8f5e9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Typography fontSize={14}>📍</Typography>
+                              </Box>
+                              <Box>
+                                <Typography variant="caption" color="textSecondary">Inicio de revisión</Typography>
+                                <Typography variant="body2" fontWeight={600}>
+                                  {rev.geolocalizacion.inicio.timestamp
+                                    ? new Date(rev.geolocalizacion.inicio.timestamp).toLocaleTimeString('es-CL')
+                                    : '—'}
+                                </Typography>
+                              </Box>
+                            </Box>
+                            <Typography variant="caption" color="textSecondary" display="block">Coordenadas</Typography>
+                            <Typography variant="body2" fontWeight={500} sx={{ fontFamily: 'monospace' }}>
+                              {rev.geolocalizacion.inicio.latitude?.toFixed(6)}, {rev.geolocalizacion.inicio.longitude?.toFixed(6)}
+                            </Typography>
+                            {rev.geolocalizacion.inicio.accuracy && (
+                              <Typography variant="caption" color="textSecondary" display="block" mt={0.5}>
+                                Precisión: ±{Math.round(rev.geolocalizacion.inicio.accuracy)}m
+                              </Typography>
+                            )}
+                            <Button
+                              size="small" variant="outlined" sx={{ mt: 1.5, fontSize: 11 }}
+                              href={`https://www.google.com/maps?q=${rev.geolocalizacion.inicio.latitude},${rev.geolocalizacion.inicio.longitude}`}
+                              target="_blank"
+                            >
+                              Ver en Google Maps
+                            </Button>
+                          </Paper>
+                        </Grid>
+                      )}
+
+                      {/* Fin */}
+                      {rev?.geolocalizacion?.fin?.latitude && (
+                        <Grid item xs={12} sm={6}>
+                          <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderTop: '3px solid #e65100' }}>
+                            <Box display="flex" alignItems="center" gap={1} mb={1.5}>
+                              <Box sx={{ width: 28, height: 28, borderRadius: '50%', bgcolor: '#fff3e0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Typography fontSize={14}>🏁</Typography>
+                              </Box>
+                              <Box>
+                                <Typography variant="caption" color="textSecondary">Fin de revisión</Typography>
+                                <Typography variant="body2" fontWeight={600}>
+                                  {rev.geolocalizacion.fin.timestamp
+                                    ? new Date(rev.geolocalizacion.fin.timestamp).toLocaleTimeString('es-CL')
+                                    : '—'}
+                                </Typography>
+                              </Box>
+                            </Box>
+                            <Typography variant="caption" color="textSecondary" display="block">Coordenadas</Typography>
+                            <Typography variant="body2" fontWeight={500} sx={{ fontFamily: 'monospace' }}>
+                              {rev.geolocalizacion.fin.latitude?.toFixed(6)}, {rev.geolocalizacion.fin.longitude?.toFixed(6)}
+                            </Typography>
+                            {rev.geolocalizacion.fin.accuracy && (
+                              <Typography variant="caption" color="textSecondary" display="block" mt={0.5}>
+                                Precisión: ±{Math.round(rev.geolocalizacion.fin.accuracy)}m
+                              </Typography>
+                            )}
+                            <Button
+                              size="small" variant="outlined" sx={{ mt: 1.5, fontSize: 11 }}
+                              href={`https://www.google.com/maps?q=${rev.geolocalizacion.fin.latitude},${rev.geolocalizacion.fin.longitude}`}
+                              target="_blank"
+                            >
+                              Ver en Google Maps
+                            </Button>
+                          </Paper>
+                        </Grid>
+                      )}
+
+                      {/* Duración */}
+                      {rev?.geolocalizacion?.inicio?.timestamp && rev?.geolocalizacion?.fin?.timestamp && (
+                        <Grid item xs={12} sm={6}>
+                          <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                            <Typography variant="caption" color="textSecondary">Duración total</Typography>
+                            <Typography variant="h5" fontWeight={600} mt={0.5}>
+                              {(() => {
+                                const diff = new Date(rev.geolocalizacion.fin.timestamp) - new Date(rev.geolocalizacion.inicio.timestamp);
+                                const h = Math.floor(diff / 3600000);
+                                const m = Math.floor((diff % 3600000) / 60000);
+                                return `${h}h ${m}m`;
+                              })()}
+                            </Typography>
+                          </Paper>
+                        </Grid>
+                      )}
+
+                      {/* Auditoría */}
+                      <Grid item xs={12} sm={6}>
+                        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                          <Typography variant="caption" color="textSecondary" fontWeight={600} display="block" mb={1}>
+                            Auditoría
+                          </Typography>
+                          {[
+                            { label: 'Creado por', value: rev.creadoPor },
+                            { label: 'Creado el', value: rev.creadoEn ? new Date(rev.creadoEn).toLocaleString('es-CL') : '—' },
+                            { label: 'Modificado por', value: rev.modificadoPor },
+                            { label: 'Modificado el', value: rev.modificadoEn ? new Date(rev.modificadoEn).toLocaleString('es-CL') : '—' },
+                          ].map(({ label, value }) => (
+                            <Box key={label} display="flex" justifyContent="space-between" py={0.4}
+                              sx={{ borderBottom: '0.5px solid #f0f0f0', '&:last-child': { borderBottom: 0 } }}>
+                              <Typography variant="caption" color="textSecondary">{label}</Typography>
+                              <Typography variant="caption" fontWeight={500}>{value || '—'}</Typography>
+                            </Box>
+                          ))}
+                        </Paper>
+                      </Grid>
+                    </Grid>
                   )}
                 </Box>
               )}

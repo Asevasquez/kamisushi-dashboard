@@ -445,6 +445,99 @@ export default function Dashboard() {
         </Paper>
       )}
 
+      {/* ─── TAB 5: Ubicaciones ─────────────────── */}
+      {tab === 5 && ['master', 'gerencia'].includes(user?.rol) && (
+        <Paper sx={{ borderRadius: 2, overflow: 'hidden' }}>
+          <Box sx={{ bgcolor: '#1565c0', px: 2, py: 1.5 }}>
+            <Typography variant="subtitle2" color="white" fontWeight={500}>
+              📍 Ubicaciones de revisiones del mes
+            </Typography>
+          </Box>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ bgcolor: '#fafafa' }}>
+                  {['Local', 'Supervisor', 'Fecha', 'Inicio', 'Fin', 'Duración', 'Coordenadas inicio'].map(h => (
+                    <TableCell key={h} sx={{ fontWeight: 600, fontSize: 11, color: 'text.secondary', py: 1 }}>{h}</TableCell>
+                  ))}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {(() => {
+                  const todas = Object.entries(revisionesMes)
+                    .flatMap(([nombre, data]) =>
+                      (data.revisiones || []).map(r => ({ ...r, localNombre: nombre }))
+                    )
+                    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+                  if (todas.length === 0) {
+                    return (
+                      <TableRow>
+                        <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                          Sin revisiones este mes
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+
+                  return todas.map((r, i) => {
+                    const geo = r.geolocalizacion;
+                    const tieneGeo = geo?.inicio?.latitude;
+                    const duracion = geo?.inicio?.timestamp && geo?.fin?.timestamp
+                      ? (() => {
+                          const diff = new Date(geo.fin.timestamp) - new Date(geo.inicio.timestamp);
+                          return `${Math.floor(diff / 3600000)}h ${Math.floor((diff % 3600000) / 60000)}m`;
+                        })()
+                      : '—';
+
+                    return (
+                      <TableRow key={i} hover>
+                        <TableCell><Typography variant="body2" fontWeight={500}>{r.localNombre}</Typography></TableCell>
+                        <TableCell><Typography variant="caption">{r.supervisor || '—'}</Typography></TableCell>
+                        <TableCell><Typography variant="caption">{new Date(r.fecha).toLocaleDateString('es-CL')}</Typography></TableCell>
+                        <TableCell>
+                          <Typography variant="caption">
+                            {geo?.inicio?.timestamp ? new Date(geo.inicio.timestamp).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="caption">
+                            {geo?.fin?.timestamp ? new Date(geo.fin.timestamp).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell><Typography variant="caption">{duracion}</Typography></TableCell>
+                        <TableCell>
+                          {tieneGeo ? (
+                            <Box>
+                              <Typography variant="caption" sx={{ fontFamily: 'monospace', fontSize: 10 }}>
+                                {geo.inicio.latitude.toFixed(4)}, {geo.inicio.longitude.toFixed(4)}
+                              </Typography>
+                              <Box>
+                                <Typography
+                                  variant="caption"
+                                  sx={{ color: '#1565c0', cursor: 'pointer', fontSize: 10 }}
+                                  component="a"
+                                  href={`https://www.google.com/maps?q=${geo.inicio.latitude},${geo.inicio.longitude}`}
+                                  target="_blank"
+                                >
+                                  Ver mapa ↗
+                                </Typography>
+                              </Box>
+                            </Box>
+                          ) : (
+                            <Typography variant="caption" color="textSecondary">Sin geo</Typography>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  });
+                })()}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+      )}
+
       {Object.keys(revisionesMes).length === 0 && !stats && (
         <Paper sx={{ p: 4, textAlign: 'center', borderRadius: 2 }}>
           <Typography color="textSecondary">No hay datos disponibles para este mes.</Typography>
