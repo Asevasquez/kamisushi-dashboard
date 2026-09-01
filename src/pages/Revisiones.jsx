@@ -20,6 +20,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { es } from 'date-fns/locale';
 import api from '../services/api';
+import { useTheme } from '@mui/material/styles';
 import { useAuth } from '../context/AuthContext';
 
 const API_BASE = 'https://supervision-back.vertigs.net';
@@ -154,7 +155,7 @@ function SeccionDetalle({ titulo, respuestas, color }) {
           <Typography color="success.main" variant="body2">✅ Sin incumplimientos en esta sección</Typography>
         ) : (
           incumplidos.map(([id, v]) => (
-            <Box key={id} sx={{ mb: 1.5, p: 2, bgcolor: '#fff5f5', borderRadius: 1, borderLeft: '3px solid #d32f2f' }}>
+            <Box key={id} sx={{ mb: 1.5, p: 2, bgcolor: isDark ? '#2d1515' : '#fff5f5', borderRadius: 1, borderLeft: '3px solid #d32f2f' }}>
               <Box display="flex" alignItems="flex-start" gap={1} mb={0.5}>
                 <CancelIcon fontSize="small" color="error" sx={{ mt: 0.3, flexShrink: 0 }} />
                 <Box>
@@ -170,7 +171,7 @@ function SeccionDetalle({ titulo, respuestas, color }) {
                 </Box>
               </Box>
               {v.observacion && (
-                <Box sx={{ ml: 3.5, mt: 0.5, p: 1, bgcolor: '#fff', borderRadius: 1, border: '1px solid #fecaca' }}>
+                <Box sx={{ ml: 3.5, mt: 0.5, p: 1, bgcolor: isDark ? '#1a1a1a' : '#fff', borderRadius: 1, border: `1px solid ${isDark ? '#5d2020' : '#fecaca'}` }}>
                   <Typography variant="caption" color="error" fontWeight={600}>Observación: </Typography>
                   <Typography variant="caption" color="textSecondary">{v.observacion}</Typography>
                 </Box>
@@ -201,6 +202,8 @@ export default function Revisiones() {
   const [detailDialog, setDetailDialog] = useState({ open: false, revision: null });
   const [tabDetalle, setTabDetalle] = useState(0);
   const { user } = useAuth();
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
 
   useEffect(() => { loadData(); }, []);
   useEffect(() => { loadRevisiones(); }, [filters]);
@@ -452,7 +455,7 @@ export default function Revisiones() {
                     const pColor = getPorcentajeColor(pct);
                     return (
                       <Grid item xs={12} sm={4} key={key}>
-                        <Paper variant="outlined" sx={{ p: 2, borderTop: `4px solid ${color}`, borderRadius: 2 }}>
+                        <Paper variant="outlined" sx={{ p: 2, borderTop: `4px solid ${color}`, borderRadius: 2, bgcolor: isDark ? '#1e1e1e' : 'background.paper' }}>
                           <Box display="flex" justifyContent="space-between" alignItems="flex-start">
                             <Box>
                               <Typography variant="subtitle2" fontWeight={700}>{label}</Typography>
