@@ -445,8 +445,8 @@ export default function Dashboard() {
         </Paper>
       )}
 
-      {/* ─── TAB 5: Ubicaciones ─────────────────── */}
-      {tab === 5 && ['master', 'gerencia'].includes(user?.rol) && (
+      {/* ─── Ubicaciones (solo master/gerencia) ─── */}
+      {['master', 'gerencia'].includes(user?.rol) && localesOrdenados.length > 0 && (
         <Paper sx={{ borderRadius: 2, overflow: 'hidden' }}>
           <Box sx={{ bgcolor: '#1565c0', px: 2, py: 1.5 }}>
             <Typography variant="subtitle2" color="white" fontWeight={500}>
