@@ -119,7 +119,7 @@ function FotoItem({ src, alt }) {
   );
 }
 
-function SeccionDetalle({ titulo, respuestas, color }) {
+function SeccionDetalle({ titulo, respuestas, color, isDark = false }) {
   const items = Object.entries(respuestas || {});
   const cumplidos = items.filter(([, v]) => v.cumple === true).length;
   const total = items.length;
@@ -517,9 +517,9 @@ export default function Revisiones() {
 
               {tabDetalle === 1 && (
                 <Box>
-                  <SeccionDetalle titulo="Servicio al Cliente (40%)" respuestas={rev.servicioCliente?.respuestas} color="#2196f3" />
-                  <SeccionDetalle titulo="Cuarto Frío (30%)" respuestas={rev.cuartoFrio?.respuestas} color="#4caf50" />
-                  <SeccionDetalle titulo="Cuarto Caliente (30%)" respuestas={rev.cuartoCaliente?.respuestas} color="#ff9800" />
+                  <SeccionDetalle isDark={isDark} titulo="Servicio al Cliente (40%)" respuestas={rev.servicioCliente?.respuestas} color="#2196f3" />
+                  <SeccionDetalle isDark={isDark} titulo="Cuarto Frío (30%)" respuestas={rev.cuartoFrio?.respuestas} color="#4caf50" />
+                  <SeccionDetalle isDark={isDark} titulo="Cuarto Caliente (30%)" respuestas={rev.cuartoCaliente?.respuestas} color="#ff9800" />
                 </Box>
               )}
 
