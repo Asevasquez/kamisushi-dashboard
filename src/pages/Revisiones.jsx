@@ -90,6 +90,7 @@ const getPorcentajeColor = (p) => {
 
 const getImageUrl = (url) => {
   if (!url) return null;
+  if (url.startsWith('data:image')) return url;  // base64 directo
   if (url.startsWith('http')) return url;
   if (url.startsWith('/uploads')) return `${API_BASE}${url}`;
   return null;
