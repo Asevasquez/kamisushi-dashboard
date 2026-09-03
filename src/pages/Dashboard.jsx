@@ -167,6 +167,17 @@ export default function Dashboard() {
         </Alert>
       )}
 
+      {/* ─── Banner actualizando ──────────────────────────── */}
+      {refreshing && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5,
+          p: 1.2, bgcolor: isDark ? '#1a2a1a' : '#e8f5e9', borderRadius: 2 }}>
+          <CircularProgress size={14} sx={{ color: '#4caf50' }} />
+          <Typography variant="caption" sx={{ color: '#2e7d32', fontWeight: 500 }}>
+            Actualizando datos...
+          </Typography>
+        </Box>
+      )}
+
       {/* ─── KPI Cards ───────────────────────────────────── */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={3}>
