@@ -10,6 +10,7 @@ import Locales from './pages/Locales';
 import Supervisores from './pages/Supervisores';
 import Revisiones from './pages/Revisiones';
 import AsignarLocales from './pages/AsignarLocales';
+import DashboardSupervision from './pages/DashboardSupervision';
 import Layout from './components/Layout';
 
 // Contexto global del modo oscuro
@@ -32,6 +33,7 @@ function AppRoutes() {
         <Route index element={<Navigate to="/dashboard" />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="revisiones" element={<Revisiones />} />
+        <Route path="dashboard-supervision" element={<PrivateRoute allowedRoles={['master']}><DashboardSupervision /></PrivateRoute>} />
         <Route path="usuarios" element={<PrivateRoute allowedRoles={['master']}><Usuarios /></PrivateRoute>} />
         <Route path="locales" element={<PrivateRoute allowedRoles={['master']}><Locales /></PrivateRoute>} />
         <Route path="supervisores" element={<PrivateRoute allowedRoles={['master']}><Supervisores /></PrivateRoute>} />
