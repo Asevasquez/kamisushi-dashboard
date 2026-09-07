@@ -199,6 +199,7 @@ export default function Revisiones() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [filters, setFilters] = useState({ localId: '', supervisorId: '', fechaInicio: null, fechaFin: null });
+  const [total, setTotal] = useState(0);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null });
   const [detailDialog, setDetailDialog] = useState({ open: false, revision: null });
   const [tabDetalle, setTabDetalle] = useState(0);
@@ -207,7 +208,8 @@ export default function Revisiones() {
   const isDark = theme.palette.mode === 'dark';
 
   useEffect(() => { loadData(); }, []);
-  useEffect(() => { loadRevisiones(); }, [filters]);
+  useEffect(() => { setPage(0); }, [filters]);
+  useEffect(() => { loadRevisiones(); }, [filters, page, rowsPerPage]);
 
   const loadData = async () => {
     try {
@@ -222,13 +224,14 @@ export default function Revisiones() {
   const loadRevisiones = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/revisiones');
-      let data = response.data;
-      if (filters.localId) data = data.filter(r => r.localId === filters.localId || r.localId?._id === filters.localId);
-      if (filters.supervisorId) data = data.filter(r => r.supervisorId === filters.supervisorId || r.supervisorId?._id === filters.supervisorId);
-      if (filters.fechaInicio) data = data.filter(r => new Date(r.fechaRevision) >= filters.fechaInicio);
-      if (filters.fechaFin) data = data.filter(r => new Date(r.fechaRevision) <= filters.fechaFin);
-      setRevisiones(data);
+      const params = { page: page + 1, limit: rowsPerPage };
+      if (filters.localId) params.localId = filters.localId;
+      if (filters.supervisorId) params.supervisorId = filters.supervisorId;
+      if (filters.fechaInicio) params.fechaInicio = filters.fechaInicio.toISOString();
+      if (filters.fechaFin) params.fechaFin = filters.fechaFin.toISOString();
+      const response = await api.get('/revisiones', { params });
+      setRevisiones(response.data.data);
+      setTotal(response.data.total);
     } catch (error) { console.error(error); }
     finally { setLoading(false); }
   };
@@ -282,7 +285,7 @@ export default function Revisiones() {
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4" fontWeight={600}>Revisiones</Typography>
-        <Typography variant="body2" color="textSecondary">{revisiones.length} revisión(es)</Typography>
+        <Typography variant="body2" color="textSecondary">{total} revisión(es)</Typography>
       </Box>
 
       <Paper sx={{ p: 2, mb: 2 }}>
@@ -344,7 +347,7 @@ export default function Revisiones() {
                   </TableCell>
                 </TableRow>
               ) : (
-                revisiones.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((revision) => (
+                revisiones.map((revision) => (
                   <TableRow key={revision._id} hover>
                     <TableCell><strong>{getNombreLocal(revision)}</strong></TableCell>
                     <TableCell>{revision.supervisorNombre || '—'}</TableCell>
@@ -392,7 +395,7 @@ export default function Revisiones() {
             </TableBody>
           </Table>
           <TablePagination rowsPerPageOptions={[5, 10, 25]} component="div"
-            count={revisiones.length} rowsPerPage={rowsPerPage} page={page}
+            count={total} rowsPerPage={rowsPerPage} page={page}
             onPageChange={(e, newPage) => setPage(newPage)}
             onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
             labelRowsPerPage="Filas por página" />
