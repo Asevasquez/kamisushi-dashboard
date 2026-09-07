@@ -33,7 +33,7 @@ function AppRoutes() {
         <Route index element={<Navigate to="/dashboard" />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="revisiones" element={<Revisiones />} />
-        <Route path="dashboard-supervision" element={<PrivateRoute allowedRoles={['master']}><DashboardSupervision /></PrivateRoute>} />
+        <Route path="dashboard-supervision" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'administrador', 'supervisor']}><DashboardSupervision /></PrivateRoute>} />
         <Route path="usuarios" element={<PrivateRoute allowedRoles={['master']}><Usuarios /></PrivateRoute>} />
         <Route path="locales" element={<PrivateRoute allowedRoles={['master']}><Locales /></PrivateRoute>} />
         <Route path="supervisores" element={<PrivateRoute allowedRoles={['master']}><Supervisores /></PrivateRoute>} />
