@@ -150,7 +150,7 @@ export default function Login() {
             <Button type="submit" fullWidth variant="contained" disabled={loading}
               sx={{
                 mt: 3, mb: 2, py: 1.4, borderRadius: 2, fontWeight: 700,
-                fontSize: 14, letterSpacing: 1, bgcolor: '#d32f2f',
+                fontSize: 14, letterSpacing: 1, bgcolor: '#f20000',
                 '&:hover': { bgcolor: '#b71c1c' },
                 boxShadow: '0 4px 14px rgba(211,47,47,0.35)',
               }}>

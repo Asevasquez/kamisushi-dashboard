@@ -2,6 +2,7 @@ import React, { useState, createContext, useContext, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import GlobalStyles from '@mui/material/GlobalStyles';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -62,7 +63,7 @@ export default function App() {
   const theme = useMemo(() => createTheme({
     palette: {
       mode,
-      primary: { main: '#d32f2f' },
+      primary: { main: '#f20000' },
       secondary: { main: '#f44336' },
       ...(mode === 'dark' && {
         background: { default: '#121212', paper: '#1e1e1e' },
@@ -74,6 +75,14 @@ export default function App() {
     <ColorModeContext.Provider value={colorMode}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
+        {/* Reset defensivo: el index.css/App.css por defecto de Vite trae "#root { max-width: 1280px; margin: 0 auto }",
+            lo que deja el contenido real encajonado y centrado con espacios vacíos a los lados
+            (el AppBar/Drawer no se ven afectados porque son position:fixed). Esto lo neutraliza
+            sin depender de encontrar y editar ese archivo. */}
+        <GlobalStyles styles={{
+          '#root': { maxWidth: 'none !important', margin: '0 !important', padding: '0 !important', width: '100% !important', textAlign: 'initial !important' },
+          'html, body': { width: '100%', margin: 0, padding: 0 },
+        }} />
         <AuthProvider>
           <Router>
             <AppRoutes />

@@ -5,17 +5,54 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box, Grid, Typography, FormControl, InputLabel, Select, MenuItem,
   CircularProgress, Paper, Button, Tabs, Tab, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, Chip, Divider,
+  TableContainer, TableHead, TableRow, Chip, Divider, Checkbox, ListItemText,
 } from '@mui/material';
-import { Refresh as RefreshIcon, RestartAlt as RestartAltIcon } from '@mui/icons-material';
+import { Refresh as RefreshIcon, RestartAlt as RestartAltIcon, Download as DownloadIcon } from '@mui/icons-material';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip as RechartsTooltip, LineChart, Line,
 } from 'recharts';
 import api from '../services/api';
+import ExcelJS from 'exceljs';
+
+// Etiqueta y color de severidad para el export "resumen" (mismo criterio que dashboardSupervision.js)
+const SEVERIDAD_LABEL = { ALTO: 'CLASIFICACION_GRADO_ALTO', MEDIO: 'CLASIFICACION_GRADO_MEDIO', BAJO: 'CLASIFICACION_GRADO_BAJO' };
+const SEVERIDAD_FILL = { ALTO: 'FFC00000', MEDIO: 'FFFFA500', BAJO: 'FF70AD47' }; // rojo, naranjo, verde (ARGB para exceljs)
+const SEVERIDAD_FONT = { ALTO: 'FFFFFFFF', MEDIO: 'FF7F3F00', BAJO: 'FFFFFFFF' };
+
+function fmtFechaDDMMAAAA(fecha) {
+  const d = new Date(fecha);
+  if (isNaN(d.getTime())) return '';
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const aaaa = d.getFullYear();
+  return `${dd}${mm}${aaaa}`;
+}
+
+function fmtFechaConGuiones(fecha) {
+  const d = new Date(fecha);
+  if (isNaN(d.getTime())) return '';
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const aaaa = d.getFullYear();
+  return `${dd}-${mm}-${aaaa}`;
+}
+
+async function descargarWorkbook(workbook, nombreArchivo) {
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/octet-stream' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nombreArchivo;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+}
 
 const COLOR_CATEGORIA = {
-  'PÉSIMO': '#d32f2f',
+  'PÉSIMO': '#f20000',
   MALO: '#f44336',
   REGULAR: '#ff9800',
   BUENO: '#2196f3',
@@ -42,19 +79,19 @@ function colorPorCumplimiento(pct) {
   if (pct >= 80) return '#2e7d32';
   if (pct >= 60) return '#1976d2';
   if (pct >= 40) return '#f57c00';
-  return '#d32f2f';
+  return '#f20000';
 }
 
 function KpiCard({ label, value, sub, color }) {
   return (
-    <Paper sx={{ p: 2.5, borderRadius: 3, height: '100%' }}>
-      <Typography variant="caption" sx={{ color: 'text.secondary', letterSpacing: 0.5, fontWeight: 600 }}>
+    <Paper sx={{ p: 3, borderRadius: 3, height: '100%', borderBottom: `3px solid ${color || '#e0e0e0'}` }}>
+      <Typography variant="body2" sx={{ color: 'text.secondary', letterSpacing: 0.5, fontWeight: 600, fontSize: 13 }}>
         {label.toUpperCase()}
       </Typography>
-      <Typography variant="h4" fontWeight={800} sx={{ color: color || 'text.primary', mt: 0.5 }}>
+      <Typography variant="h3" fontWeight={800} sx={{ color: color || 'text.primary', mt: 0.75 }}>
         {value}
       </Typography>
-      {sub && <Typography variant="caption" color="text.secondary">{sub}</Typography>}
+      {sub && <Typography variant="body2" color="text.secondary" fontSize={13}>{sub}</Typography>}
     </Paper>
   );
 }
@@ -81,7 +118,7 @@ export default function DashboardSupervision() {
 
   const [mes, setMes] = useState('');
   const [supervisorId, setSupervisorId] = useState('');
-  const [localId, setLocalId] = useState('');
+  const [localIds, setLocalIds] = useState([]);
   const [categoria, setCategoria] = useState('');
 
   const [resumen, setResumen] = useState(null);
@@ -111,10 +148,10 @@ export default function DashboardSupervision() {
     const p = {};
     if (mes) p.mes = mes;
     if (supervisorId) p.supervisorId = supervisorId;
-    if (localId) p.localId = localId;
+    if (localIds.length > 0) p.localId = localIds.join(',');
     if (categoria) p.categoria = categoria;
     return p;
-  }, [mes, supervisorId, localId, categoria]);
+  }, [mes, supervisorId, localIds, categoria]);
 
   const cargarDatos = () => {
     setLoading(true);
@@ -134,14 +171,84 @@ export default function DashboardSupervision() {
   }, [params]);
 
   const resetFiltros = () => {
-    setSupervisorId(''); setLocalId(''); setCategoria('');
+    setSupervisorId(''); setLocalIds([]); setCategoria('');
     if (meses.length > 0) setMes(meses[0]);
+  };
+
+  // ─── Exportar "tabla tal cual" — mismas columnas que se ven en pantalla ───
+  const exportarTablaCompleta = async () => {
+    if (!reclamos?.reclamos?.length) return;
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Reclamos');
+    ws.columns = [
+      { header: 'Fecha', key: 'fecha', width: 12 },
+      { header: 'Tipo', key: 'tipo', width: 30 },
+      { header: 'Local', key: 'local', width: 20 },
+      { header: 'Supervisor', key: 'supervisor', width: 18 },
+      { header: 'Solución', key: 'solucion', width: 14 },
+      { header: 'Monto', key: 'monto', width: 12 },
+      { header: 'Teléfono', key: 'telefono', width: 15 },
+      { header: 'Comentario', key: 'comentario', width: 45 },
+    ];
+    ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD32F2F' } };
+
+    reclamos.reclamos.forEach(r => {
+      const monto = parseFloat(String(r.montoCompensacion || '0').replace(/[^\d.-]/g, '')) || 0;
+      ws.addRow({
+        fecha: fmtFechaDDMMAAAA(r.fecha),
+        tipo: r.tipo,
+        local: r.localNombre,
+        supervisor: r.supervisor,
+        solucion: r.entregoSolucion,
+        monto: monto > 0 ? monto : '',
+        telefono: r.telefono || '',
+        comentario: r.comentario || '',
+      });
+    });
+
+    await descargarWorkbook(wb, `reclamos_tabla_${fmtFechaDDMMAAAA(new Date())}.xlsx`);
+  };
+
+  // ─── Exportar "resumen" — formato para carga manual de datos del cliente ───
+  const exportarResumen = async () => {
+    if (!reclamos?.reclamos?.length) return;
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Resumen');
+    ws.columns = [
+      { header: 'LOCAL', key: 'local', width: 20 },
+      { header: 'FECHA DE INGRESO', key: 'fecha', width: 16 },
+      { header: 'DATOS DEL CLIENTE', key: 'cliente', width: 22 },
+      { header: 'CONTACTO', key: 'contacto', width: 15 },
+      { header: 'TIPO RECLAMO', key: 'tipoReclamo', width: 28 },
+      { header: 'CATEGORÍA', key: 'categoria', width: 25 },
+    ];
+    ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF000000' } };
+
+    reclamos.reclamos.forEach(r => {
+      const row = ws.addRow({
+        local: r.localNombre,
+        fecha: fmtFechaConGuiones(r.fecha),
+        cliente: '', // se llena manualmente después de exportar
+        contacto: r.telefono || '',
+        tipoReclamo: SEVERIDAD_LABEL[r.severidad] || '',
+        categoria: r.tipo,
+      });
+      const celdaTipo = row.getCell('tipoReclamo');
+      if (SEVERIDAD_FILL[r.severidad]) {
+        celdaTipo.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: SEVERIDAD_FILL[r.severidad] } };
+        celdaTipo.font = { bold: true, color: { argb: SEVERIDAD_FONT[r.severidad] } };
+      }
+    });
+
+    await descargarWorkbook(wb, `reclamos_resumen_${fmtFechaDDMMAAAA(new Date())}.xlsx`);
   };
 
   if (loading && !resumen) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-        <CircularProgress sx={{ color: '#d32f2f' }} />
+        <CircularProgress sx={{ color: '#f20000' }} />
       </Box>
     );
   }
@@ -183,11 +290,25 @@ export default function DashboardSupervision() {
             {supervisoresLista.map(s => <MenuItem key={s._id} value={s._id}>{s.nombre}</MenuItem>)}
           </Select>
         </FormControl>
-        <FormControl size="small" sx={{ minWidth: 170 }}>
+        <FormControl size="small" sx={{ minWidth: 220 }}>
           <InputLabel>Local</InputLabel>
-          <Select value={localId} label="Local" onChange={(e) => setLocalId(e.target.value)}>
-            <MenuItem value="">Todos</MenuItem>
-            {locales.map(l => <MenuItem key={l._id} value={l._id}>{l.nombre}</MenuItem>)}
+          <Select
+            multiple
+            value={localIds}
+            label="Local"
+            onChange={(e) => setLocalIds(e.target.value)}
+            renderValue={(selected) => selected.length === 0
+              ? 'Todos'
+              : selected.length === 1
+                ? (locales.find(l => l._id === selected[0])?.nombre || '')
+                : `${selected.length} locales seleccionados`}
+          >
+            {locales.map(l => (
+              <MenuItem key={l._id} value={l._id}>
+                <Checkbox size="small" checked={localIds.indexOf(l._id) > -1} />
+                <ListItemText primary={l.nombre} />
+              </MenuItem>
+            ))}
           </Select>
         </FormControl>
         <FormControl size="small" sx={{ minWidth: 150 }}>
@@ -220,22 +341,22 @@ export default function DashboardSupervision() {
               <KpiCard label="Locales evaluados" value={resumen.localesEvaluados} sub={`${resumen.totalRevisiones} visitas`} />
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <KpiCard label="Reclamos promedio" value={(resumen.reclamosPromedioPorVisita || 0).toFixed(1)} sub="Por visita" color="#d32f2f" />
+              <KpiCard label="Reclamos promedio" value={(resumen.reclamosPromedioPorVisita || 0).toFixed(1)} sub="Por visita" color="#f20000" />
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <KpiCard label="Pésimo + Malo" value={resumen.pesimoMalo} sub={`${fmtPct(resumen.pesimoMaloPct)} del total`} color="#d32f2f" />
+              <KpiCard label="Pésimo + Malo" value={resumen.pesimoMalo} sub={`${fmtPct(resumen.pesimoMaloPct)} del total`} color="#f20000" />
             </Grid>
           </Grid>
 
-          {/* Distribución + Cumplimiento por área */}
+          {/* Distribución + Cumplimiento por área + Presencia del personal */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
-            <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 2.5, borderRadius: 3, height: '100%' }}>
+            <Grid item xs={12} md={4}>
+              <Paper sx={{ p: 3, borderRadius: 3, height: '100%' }}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary">DISTRIBUCIÓN POR CATEGORÍA</Typography>
-                <Box display="flex" alignItems="center" gap={3} flexWrap="wrap" mt={1}>
-                  <ResponsiveContainer width={180} height={180}>
+                <Box display="flex" alignItems="center" gap={3} flexWrap="wrap" mt={1.5}>
+                  <ResponsiveContainer width={200} height={200}>
                     <PieChart>
-                      <Pie data={distribucionData} dataKey="value" nameKey="name" innerRadius={45} outerRadius={75}>
+                      <Pie data={distribucionData} dataKey="value" nameKey="name" innerRadius={52} outerRadius={90}>
                         {distribucionData.map((d, i) => <Cell key={i} fill={d.color} />)}
                       </Pie>
                       <RechartsTooltip />
@@ -243,26 +364,29 @@ export default function DashboardSupervision() {
                   </ResponsiveContainer>
                   <Box>
                     {distribucionData.map(d => (
-                      <Box key={d.name} display="flex" alignItems="center" gap={1} mb={0.5}>
-                        <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: d.color }} />
-                        <Typography variant="body2">{d.name} {d.value}</Typography>
+                      <Box key={d.name} display="flex" alignItems="center" gap={1} mb={0.75}>
+                        <Box sx={{ width: 11, height: 11, borderRadius: '50%', bgcolor: d.color }} />
+                        <Typography variant="body2" fontSize={14}>{d.name} {d.value}</Typography>
                       </Box>
                     ))}
                   </Box>
                 </Box>
               </Paper>
             </Grid>
-            <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 2.5, borderRadius: 3, height: '100%' }}>
+            <Grid item xs={12} md={4}>
+              <Paper sx={{ p: 3, borderRadius: 3, height: '100%' }}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary">CUMPLIMIENTO POR ÁREA</Typography>
-                <Box mt={1.5}>
+                <Box mt={2}>
                   <BarraCumplimiento label="Servicio al cliente y caja" pct={resumen.cumplimientoPorArea.servicioCliente} color={colorPorCumplimiento(resumen.cumplimientoPorArea.servicioCliente)} />
                   <BarraCumplimiento label="Cuarto frío" pct={resumen.cumplimientoPorArea.cuartoFrio} color={colorPorCumplimiento(resumen.cumplimientoPorArea.cuartoFrio)} />
                   <BarraCumplimiento label="Cuarto caliente" pct={resumen.cumplimientoPorArea.cuartoCaliente} color={colorPorCumplimiento(resumen.cumplimientoPorArea.cuartoCaliente)} />
                 </Box>
-                <Divider sx={{ my: 1.5 }} />
+              </Paper>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Paper sx={{ p: 3, borderRadius: 3, height: '100%' }}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary">PRESENCIA DEL PERSONAL</Typography>
-                <Box mt={1.5}>
+                <Box mt={2}>
                   <BarraCumplimiento
                     label={`Administrador (${resumen.presenciaPersonal.administrador.presentes}/${resumen.presenciaPersonal.administrador.total})`}
                     pct={resumen.presenciaPersonal.administrador.total > 0 ? (resumen.presenciaPersonal.administrador.presentes / resumen.presenciaPersonal.administrador.total) * 100 : 0}
@@ -281,16 +405,16 @@ export default function DashboardSupervision() {
           {/* Supervisores + Evolución */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 2.5, borderRadius: 3, height: '100%' }}>
+              <Paper sx={{ p: 3, borderRadius: 3, height: '100%' }}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary">SUPERVISORES</Typography>
-                <Box sx={{ width: '100%', height: 280 }}>
+                <Box sx={{ width: '100%', height: 340 }}>
                   <ResponsiveContainer>
                     <BarChart data={resumen.supervisores} layout="vertical" margin={{ left: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                       <XAxis type="number" domain={[0, 100]} />
-                      <YAxis type="category" dataKey="nombre" width={90} tick={{ fontSize: 12 }} />
+                      <YAxis type="category" dataKey="nombre" width={110} tick={{ fontSize: 13 }} />
                       <RechartsTooltip formatter={(v) => `${v.toFixed(1)}%`} />
-                      <Bar dataKey="promedio" radius={[0, 6, 6, 0]}>
+                      <Bar dataKey="promedio" radius={[0, 6, 6, 0]} barSize={22}>
                         {resumen.supervisores.map((s, i) => (
                           <Cell key={i} fill={colorPorCumplimiento(s.promedio)} />
                         ))}
@@ -301,9 +425,9 @@ export default function DashboardSupervision() {
               </Paper>
             </Grid>
             <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 2.5, borderRadius: 3, height: '100%' }}>
+              <Paper sx={{ p: 3, borderRadius: 3, height: '100%' }}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary">EVOLUCIÓN DEL CUMPLIMIENTO</Typography>
-                <Box sx={{ width: '100%', height: 280 }}>
+                <Box sx={{ width: '100%', height: 340 }}>
                   <ResponsiveContainer>
                     <LineChart data={resumen.evolucion}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -319,7 +443,7 @@ export default function DashboardSupervision() {
           </Grid>
 
           {/* Preguntas con mayor incumplimiento */}
-          <Paper sx={{ p: 2.5, borderRadius: 3, mb: 3 }}>
+          <Paper sx={{ p: 3, borderRadius: 3, mb: 3 }}>
             <Typography variant="caption" fontWeight={700} color="text.secondary">PREGUNTAS CON MAYOR INCUMPLIMIENTO</Typography>
             <Tabs value={preguntasTab} onChange={(e, v) => setPreguntasTab(v)} sx={{ mb: 2, mt: 0.5, minHeight: 36 }}>
               {Object.entries(preguntasMap).map(([key, s]) => (
@@ -327,7 +451,7 @@ export default function DashboardSupervision() {
               ))}
             </Tabs>
             {preguntasMap[preguntasTab].data.map(p => (
-              <BarraCumplimiento key={p.id} label={p.texto} pct={p.porcentajeFallo} color={p.porcentajeFallo >= 50 ? '#d32f2f' : p.porcentajeFallo >= 25 ? '#f57c00' : '#1976d2'} />
+              <BarraCumplimiento key={p.id} label={p.texto} pct={p.porcentajeFallo} color={p.porcentajeFallo >= 50 ? '#f20000' : p.porcentajeFallo >= 25 ? '#f57c00' : '#1976d2'} />
             ))}
             {preguntasMap[preguntasTab].data.length === 0 && (
               <Typography color="text.secondary" textAlign="center" py={2}>Sin datos para esta sección en el período seleccionado.</Typography>
@@ -337,12 +461,12 @@ export default function DashboardSupervision() {
           {/* Reclamos del período + Detalle por supervisor */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid item xs={12} md={4}>
-              <Paper sx={{ p: 2.5, borderRadius: 3, height: '100%' }}>
+              <Paper sx={{ p: 3, borderRadius: 3, height: '100%' }}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary">RECLAMOS DEL PERÍODO</Typography>
                 <Grid container spacing={1} sx={{ mt: 0.5 }}>
                   <Grid item xs={4}>
                     <Box textAlign="center">
-                      <Typography variant="h5" fontWeight={800} color="#d32f2f">{resumen.reclamosDelPeriodo.graves}</Typography>
+                      <Typography variant="h5" fontWeight={800} color="#f20000">{resumen.reclamosDelPeriodo.graves}</Typography>
                       <Typography variant="caption" color="text.secondary">GRAVES</Typography>
                     </Box>
                   </Grid>
@@ -361,7 +485,7 @@ export default function DashboardSupervision() {
                 </Grid>
                 <Divider sx={{ my: 1.5 }} />
                 <Typography variant="body2" color="text.secondary">Promedio por visita</Typography>
-                <Typography variant="h5" fontWeight={800} color="#d32f2f">{(resumen.reclamosDelPeriodo.promedioPorVisita || 0).toFixed(1)}</Typography>
+                <Typography variant="h5" fontWeight={800} color="#f20000">{(resumen.reclamosDelPeriodo.promedioPorVisita || 0).toFixed(1)}</Typography>
               </Paper>
             </Grid>
             <Grid item xs={12} md={8}>
@@ -398,7 +522,7 @@ export default function DashboardSupervision() {
           </Grid>
 
           {/* Ranking completo */}
-          <Paper sx={{ p: 2.5, borderRadius: 3 }}>
+          <Paper sx={{ p: 3, borderRadius: 3 }}>
             <Typography variant="caption" fontWeight={700} color="text.secondary">
               RANKING COMPLETO ({resumen.ranking.length} LOCALES)
             </Typography>
@@ -436,14 +560,14 @@ export default function DashboardSupervision() {
         <>
           {/* KPIs de reclamos */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
-            <Grid item xs={6} sm={2.4}><KpiCard label="Total Reclamos" value={reclamos.resumen.total} sub="Individuales" color="#d32f2f" /></Grid>
+            <Grid item xs={6} sm={2.4}><KpiCard label="Total Reclamos" value={reclamos.resumen.total} sub="Individuales" color="#f20000" /></Grid>
             <Grid item xs={6} sm={2.4}><KpiCard label="Resueltos" value={reclamos.resumen.resueltos} sub={`${fmtPct(reclamos.resumen.tasaResolucion)} del total`} color="#2e7d32" /></Grid>
-            <Grid item xs={6} sm={2.4}><KpiCard label="Sin solución" value={reclamos.resumen.sinSolucion} sub={`${fmtPct(100 - reclamos.resumen.tasaResolucion)} del total`} color="#d32f2f" /></Grid>
+            <Grid item xs={6} sm={2.4}><KpiCard label="Sin solución" value={reclamos.resumen.sinSolucion} sub={`${fmtPct(100 - reclamos.resumen.tasaResolucion)} del total`} color="#f20000" /></Grid>
             <Grid item xs={6} sm={2.4}><KpiCard label="Tipos distintos" value={reclamos.resumen.tiposDistintos} sub="Categorías únicas" /></Grid>
             <Grid item xs={12} sm={2.4}><KpiCard label="Compensaciones" value={`$${(reclamos.resumen.compensaciones || 0).toLocaleString('es-CL')}`} sub="Monto total" color="#f57c00" /></Grid>
           </Grid>
 
-          <Paper sx={{ p: 2.5, borderRadius: 3, mb: 3 }}>
+          <Paper sx={{ p: 3, borderRadius: 3, mb: 3 }}>
             <Box display="flex" justifyContent="space-between" mb={1}>
               <Typography variant="body2">Tasa de resolución global</Typography>
               <Typography variant="h6" fontWeight={800} color="#2e7d32">{fmtPct(reclamos.resumen.tasaResolucion)}</Typography>
@@ -460,7 +584,7 @@ export default function DashboardSupervision() {
           {/* Tipos de reclamo — frecuencia + resolución por tipo */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 2.5, borderRadius: 3, height: '100%' }}>
+              <Paper sx={{ p: 3, borderRadius: 3, height: '100%' }}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary">TIPOS DE RECLAMO — FRECUENCIA</Typography>
                 <Box sx={{ width: '100%', height: Math.max(300, reclamos.tiposFrecuencia.length * 24) }}>
                   <ResponsiveContainer>
@@ -476,7 +600,7 @@ export default function DashboardSupervision() {
               </Paper>
             </Grid>
             <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 2.5, borderRadius: 3, height: '100%', overflowY: 'auto', maxHeight: 400 }}>
+              <Paper sx={{ p: 3, borderRadius: 3, height: '100%', overflowY: 'auto', maxHeight: 400 }}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary">RESOLUCIÓN POR TIPO</Typography>
                 <Box mt={1}>
                   {reclamos.resolucionPorTipo.map(t => (
@@ -484,7 +608,7 @@ export default function DashboardSupervision() {
                       key={t.tipo}
                       label={`${t.tipo} — ${t.casos} casos`}
                       pct={t.resueltoPct}
-                      color={t.resueltoPct >= 80 ? '#2e7d32' : t.resueltoPct >= 50 ? '#f57c00' : '#d32f2f'}
+                      color={t.resueltoPct >= 80 ? '#2e7d32' : t.resueltoPct >= 50 ? '#f57c00' : '#f20000'}
                     />
                   ))}
                 </Box>
@@ -495,7 +619,7 @@ export default function DashboardSupervision() {
           {/* Por local + últimos reclamos */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid item xs={12} md={7}>
-              <Paper sx={{ p: 2.5, borderRadius: 3, height: '100%' }}>
+              <Paper sx={{ p: 3, borderRadius: 3, height: '100%' }}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary">RECLAMOS POR LOCAL (TOP 15)</Typography>
                 <TableContainer sx={{ mt: 1, maxHeight: 340 }}>
                   <Table size="small" stickyHeader>
@@ -512,7 +636,7 @@ export default function DashboardSupervision() {
                         <TableRow key={l.local} hover>
                           <TableCell>{l.local}</TableCell>
                           <TableCell align="right">{l.total}</TableCell>
-                          <TableCell align="right" sx={{ color: l.sinSolucion > 0 ? '#d32f2f' : 'text.secondary' }}>{l.sinSolucion}</TableCell>
+                          <TableCell align="right" sx={{ color: l.sinSolucion > 0 ? '#f20000' : 'text.secondary' }}>{l.sinSolucion}</TableCell>
                           <TableCell align="right" sx={{ color: l.resolucionPct >= 80 ? '#2e7d32' : '#f57c00', fontWeight: 700 }}>{fmtPct(l.resolucionPct)}</TableCell>
                         </TableRow>
                       ))}
@@ -522,16 +646,16 @@ export default function DashboardSupervision() {
               </Paper>
             </Grid>
             <Grid item xs={12} md={5}>
-              <Paper sx={{ p: 2.5, borderRadius: 3, height: '100%', overflowY: 'auto', maxHeight: 400 }}>
+              <Paper sx={{ p: 3, borderRadius: 3, height: '100%', overflowY: 'auto', maxHeight: 400 }}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary">ÚLTIMOS RECLAMOS REGISTRADOS</Typography>
                 {reclamos.ultimosReclamos.map((r) => (
                   <Box key={r.id} sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
                     <Box display="flex" justifyContent="space-between">
                       <Typography variant="body2" fontWeight={700}>{r.tipo}</Typography>
                       <Chip
-                        label={r.entregoSolucion === 'Sí' ? 'Resuelto' : 'Pendiente'}
+                        label={r.entregoSolucion !== 'NO' ? 'Resuelto' : 'Pendiente'}
                         size="small"
-                        color={r.entregoSolucion === 'Sí' ? 'success' : 'error'}
+                        color={r.entregoSolucion !== 'NO' ? 'success' : 'error'}
                         sx={{ height: 20, fontSize: '0.65rem' }}
                       />
                     </Box>
@@ -549,10 +673,18 @@ export default function DashboardSupervision() {
 
           {/* Tabla completa */}
           <Paper sx={{ p: 0, borderRadius: 3, overflow: 'hidden' }}>
-            <Box p={2}>
+            <Box p={2} display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
               <Typography variant="caption" fontWeight={700} color="text.secondary">
                 TABLA COMPLETA — TODOS LOS RECLAMOS ({reclamos.reclamos.length})
               </Typography>
+              <Box display="flex" gap={1}>
+                <Button size="small" variant="outlined" startIcon={<DownloadIcon fontSize="small" />} onClick={exportarTablaCompleta}>
+                  Exportar tabla
+                </Button>
+                <Button size="small" variant="outlined" startIcon={<DownloadIcon fontSize="small" />} onClick={exportarResumen}>
+                  Exportar resumen
+                </Button>
+              </Box>
             </Box>
             <TableContainer sx={{ maxHeight: 500 }}>
               <Table size="small" stickyHeader>
@@ -565,6 +697,7 @@ export default function DashboardSupervision() {
                     <TableCell align="center">Solución</TableCell>
                     <TableCell align="right">Monto</TableCell>
                     <TableCell>Teléfono</TableCell>
+                    <TableCell>Comentario</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -572,15 +705,16 @@ export default function DashboardSupervision() {
                     const monto = parseFloat(String(r.montoCompensacion || '0').replace(/[^\d.-]/g, '')) || 0;
                     return (
                       <TableRow key={r.id} hover>
-                        <TableCell>{new Date(r.fecha).toLocaleDateString('es-CL', { weekday: 'short' })}</TableCell>
+                        <TableCell>{fmtFechaDDMMAAAA(r.fecha)}</TableCell>
                         <TableCell>{r.tipo}</TableCell>
                         <TableCell>{r.localNombre}</TableCell>
                         <TableCell>{r.supervisor}</TableCell>
-                        <TableCell align="center" sx={{ color: r.entregoSolucion === 'Sí' ? '#2e7d32' : '#d32f2f', fontWeight: 700 }}>
+                        <TableCell align="center" sx={{ color: r.entregoSolucion !== 'NO' ? '#2e7d32' : '#f20000', fontWeight: 700 }}>
                           {r.entregoSolucion}
                         </TableCell>
                         <TableCell align="right">{monto > 0 ? `$${monto.toLocaleString('es-CL')}` : '—'}</TableCell>
                         <TableCell>{r.telefono || '—'}</TableCell>
+                        <TableCell sx={{ maxWidth: 220, whiteSpace: 'normal' }}>{r.comentario || '—'}</TableCell>
                       </TableRow>
                     );
                   })}

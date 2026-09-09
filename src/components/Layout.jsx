@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import logoKamiSushi from '../assets/logo-kamisushi.png';
 import {
   AppBar, Box, Toolbar, Typography, Drawer,
   List, ListItem, ListItemIcon, ListItemText, Avatar,
@@ -32,7 +33,7 @@ const menuItems = [
 ];
 
 const ROL_COLOR = {
-  master: '#d32f2f',
+  master: '#f20000',
   gerencia: '#7c3aed',
   administrador: '#f59e0b',
   supervisor: '#2196f3',
@@ -45,7 +46,7 @@ export default function Layout() {
   const { mode, toggleColorMode } = useColorMode();
   const theme = useTheme();
   const filteredMenu = menuItems.filter(item => item.roles.includes(user?.rol));
-  const rolColor = ROL_COLOR[user?.rol] || '#d32f2f';
+  const rolColor = ROL_COLOR[user?.rol] || '#f20000';
 
   const appBarRef = useRef(null);
   const [appBarHeight, setAppBarHeight] = useState(64);
@@ -64,11 +65,11 @@ export default function Layout() {
       <AppBar
         ref={appBarRef}
         position="fixed"
-        sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, bgcolor: '#d32f2f', boxShadow: '0 2px 8px rgba(211,47,47,0.3)' }}
+        sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, bgcolor: '#f20000', boxShadow: '0 2px 8px rgba(211,47,47,0.3)' }}
       >
         <Toolbar>
           <Box display="flex" alignItems="center" gap={1} sx={{ flexGrow: 1 }}>
-            <Typography fontSize={22}>🍣</Typography>
+            <img src={logoKamiSushi} alt="KamiSushi" style={{ width: 34, height: 34, borderRadius: 6 }} />
             <Box>
               <Typography variant="h6" fontWeight={800} lineHeight={1}>KamiSushi</Typography>
               <Typography variant="caption" sx={{ opacity: 0.8, lineHeight: 1 }}>Sistema de Supervisión</Typography>
@@ -127,7 +128,7 @@ export default function Layout() {
                   sx={{
                     mx: 1, mb: 0.5, borderRadius: 2, width: 'calc(100% - 16px)',
                     '&.Mui-selected': {
-                      bgcolor: '#d32f2f',
+                      bgcolor: '#f20000',
                       '& .MuiListItemIcon-root': { color: '#fff' },
                       '& .MuiListItemText-primary': { color: '#fff', fontWeight: 700 },
                       '&:hover': { bgcolor: '#b71c1c' },
