@@ -10,7 +10,7 @@ import {
 import { Refresh as RefreshIcon, RestartAlt as RestartAltIcon, Download as DownloadIcon } from '@mui/icons-material';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
-  CartesianGrid, Tooltip as RechartsTooltip, LineChart, Line,
+  CartesianGrid, Tooltip as RechartsTooltip, LineChart, Line, LabelList,
 } from 'recharts';
 import api from '../services/api';
 import ExcelJS from 'exceljs';
@@ -26,7 +26,7 @@ function fmtFechaDDMMAAAA(fecha) {
   const dd = String(d.getDate()).padStart(2, '0');
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const aaaa = d.getFullYear();
-  return `${dd}${mm}${aaaa}`;
+  return `${dd}-${mm}-${aaaa}`;
 }
 
 function fmtFechaConGuiones(fecha) {
@@ -226,7 +226,20 @@ export default function DashboardSupervision() {
     ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
     ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF000000' } };
 
+    // Agrupa por revisión (manteniendo el orden de aparición de las revisiones ya
+    // ordenadas por fecha) y dentro de cada una respeta el orden real en que se
+    // ingresaron los reclamos (Reclamo #1, #2, #3...), igual que se ve en el detalle
+    // de la revisión en "Revisiones".
+    const grupos = new Map();
     reclamos.reclamos.forEach(r => {
+      if (!grupos.has(r.revisionId)) grupos.set(r.revisionId, []);
+      grupos.get(r.revisionId).push(r);
+    });
+    const reclamosOrdenados = [...grupos.values()].flatMap(grupo =>
+      [...grupo].sort((a, b) => a.ordenEnRevision - b.ordenEnRevision)
+    );
+
+    reclamosOrdenados.forEach(r => {
       const row = ws.addRow({
         local: r.localNombre,
         fecha: fmtFechaConGuiones(r.fecha),
@@ -264,7 +277,7 @@ export default function DashboardSupervision() {
   };
 
   return (
-    <Box>
+    <Box sx={{ width: '100%', maxWidth: '100%' }}>
       <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={2} mb={1}>
         <Box>
           <Typography variant="h4" fontWeight={800}>Dashboard Supervisión</Typography>
@@ -333,7 +346,7 @@ export default function DashboardSupervision() {
       {tab === 'resumen' && resumen && (
         <>
           {/* KPIs principales */}
-          <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid container spacing={2} sx={{ mb: 3, width: '100%' }}>
             <Grid item xs={12} sm={6} md={3}>
               <KpiCard label="Cumplimiento general" value={fmtPct(resumen.cumplimientoGeneral)} sub={`${resumen.totalRevisiones} revisiones`} color="#1976d2" />
             </Grid>
@@ -349,7 +362,7 @@ export default function DashboardSupervision() {
           </Grid>
 
           {/* Distribución + Cumplimiento por área + Presencia del personal */}
-          <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid container spacing={2} sx={{ mb: 3, width: '100%' }}>
             <Grid item xs={12} md={4}>
               <Paper sx={{ p: 3, borderRadius: 3, height: '100%' }}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary">DISTRIBUCIÓN POR CATEGORÍA</Typography>
@@ -403,21 +416,22 @@ export default function DashboardSupervision() {
           </Grid>
 
           {/* Supervisores + Evolución */}
-          <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid container spacing={2} sx={{ mb: 3, width: '100%' }}>
             <Grid item xs={12} md={6}>
               <Paper sx={{ p: 3, borderRadius: 3, height: '100%' }}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary">SUPERVISORES</Typography>
-                <Box sx={{ width: '100%', height: 340 }}>
+                <Box sx={{ width: '100%', height: Math.max(220, resumen.supervisores.length * 56) }}>
                   <ResponsiveContainer>
-                    <BarChart data={resumen.supervisores} layout="vertical" margin={{ left: 20 }}>
+                    <BarChart data={resumen.supervisores} layout="vertical" margin={{ left: 20, right: 40 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                      <XAxis type="number" domain={[0, 100]} />
+                      <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
                       <YAxis type="category" dataKey="nombre" width={110} tick={{ fontSize: 13 }} />
                       <RechartsTooltip formatter={(v) => `${v.toFixed(1)}%`} />
-                      <Bar dataKey="promedio" radius={[0, 6, 6, 0]} barSize={22}>
+                      <Bar dataKey="promedio" radius={[0, 6, 6, 0]} barSize={26}>
                         {resumen.supervisores.map((s, i) => (
                           <Cell key={i} fill={colorPorCumplimiento(s.promedio)} />
                         ))}
+                        <LabelList dataKey="promedio" position="right" formatter={(v) => `${v.toFixed(1)}%`} style={{ fontSize: 12, fontWeight: 700, fill: 'var(--mui-palette-text-primary, #333)' }} />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -459,33 +473,33 @@ export default function DashboardSupervision() {
           </Paper>
 
           {/* Reclamos del período + Detalle por supervisor */}
-          <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid container spacing={2} sx={{ mb: 3, width: '100%' }}>
             <Grid item xs={12} md={4}>
               <Paper sx={{ p: 3, borderRadius: 3, height: '100%' }}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary">RECLAMOS DEL PERÍODO</Typography>
-                <Grid container spacing={1} sx={{ mt: 0.5 }}>
+                <Grid container spacing={1.5} sx={{ mt: 1.5 }}>
                   <Grid item xs={4}>
-                    <Box textAlign="center">
-                      <Typography variant="h5" fontWeight={800} color="#f20000">{resumen.reclamosDelPeriodo.graves}</Typography>
-                      <Typography variant="caption" color="text.secondary">GRAVES</Typography>
+                    <Box textAlign="center" sx={{ bgcolor: 'rgba(242,0,0,0.08)', borderRadius: 2, py: 1.5 }}>
+                      <Typography variant="h4" fontWeight={800} color="#f20000">{resumen.reclamosDelPeriodo.graves}</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontWeight: 600 }}>GRAVES</Typography>
                     </Box>
                   </Grid>
                   <Grid item xs={4}>
-                    <Box textAlign="center">
-                      <Typography variant="h5" fontWeight={800} color="#f57c00">{resumen.reclamosDelPeriodo.medios}</Typography>
-                      <Typography variant="caption" color="text.secondary">MEDIOS</Typography>
+                    <Box textAlign="center" sx={{ bgcolor: 'rgba(245,124,0,0.08)', borderRadius: 2, py: 1.5 }}>
+                      <Typography variant="h4" fontWeight={800} color="#f57c00">{resumen.reclamosDelPeriodo.medios}</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontWeight: 600 }}>MEDIOS</Typography>
                     </Box>
                   </Grid>
                   <Grid item xs={4}>
-                    <Box textAlign="center">
-                      <Typography variant="h5" fontWeight={800} color="#1976d2">{resumen.reclamosDelPeriodo.bajos}</Typography>
-                      <Typography variant="caption" color="text.secondary">BAJOS</Typography>
+                    <Box textAlign="center" sx={{ bgcolor: 'rgba(25,118,210,0.08)', borderRadius: 2, py: 1.5 }}>
+                      <Typography variant="h4" fontWeight={800} color="#1976d2">{resumen.reclamosDelPeriodo.bajos}</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontWeight: 600 }}>BAJOS</Typography>
                     </Box>
                   </Grid>
                 </Grid>
-                <Divider sx={{ my: 1.5 }} />
+                <Divider sx={{ my: 2 }} />
                 <Typography variant="body2" color="text.secondary">Promedio por visita</Typography>
-                <Typography variant="h5" fontWeight={800} color="#f20000">{(resumen.reclamosDelPeriodo.promedioPorVisita || 0).toFixed(1)}</Typography>
+                <Typography variant="h4" fontWeight={800} color="#f20000" sx={{ mt: 0.5 }}>{(resumen.reclamosDelPeriodo.promedioPorVisita || 0).toFixed(1)}</Typography>
               </Paper>
             </Grid>
             <Grid item xs={12} md={8}>
@@ -497,9 +511,9 @@ export default function DashboardSupervision() {
                       <TableRow>
                         <TableCell>Supervisor</TableCell>
                         <TableCell align="center">Prom.</TableCell>
-                        <TableCell align="center">S.C.</TableCell>
-                        <TableCell align="center">C.F.</TableCell>
-                        <TableCell align="center">C.C.</TableCell>
+                        <TableCell align="center">Servicio al Cliente</TableCell>
+                        <TableCell align="center">Cuarto Frío</TableCell>
+                        <TableCell align="center">Cuarto Caliente</TableCell>
                         <TableCell align="center">N</TableCell>
                       </TableRow>
                     </TableHead>
@@ -559,7 +573,7 @@ export default function DashboardSupervision() {
       {tab === 'reclamos' && reclamos && (
         <>
           {/* KPIs de reclamos */}
-          <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid container spacing={2} sx={{ mb: 3, width: '100%' }}>
             <Grid item xs={6} sm={2.4}><KpiCard label="Total Reclamos" value={reclamos.resumen.total} sub="Individuales" color="#f20000" /></Grid>
             <Grid item xs={6} sm={2.4}><KpiCard label="Resueltos" value={reclamos.resumen.resueltos} sub={`${fmtPct(reclamos.resumen.tasaResolucion)} del total`} color="#2e7d32" /></Grid>
             <Grid item xs={6} sm={2.4}><KpiCard label="Sin solución" value={reclamos.resumen.sinSolucion} sub={`${fmtPct(100 - reclamos.resumen.tasaResolucion)} del total`} color="#f20000" /></Grid>
@@ -582,7 +596,7 @@ export default function DashboardSupervision() {
           </Paper>
 
           {/* Tipos de reclamo — frecuencia + resolución por tipo */}
-          <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid container spacing={2} sx={{ mb: 3, width: '100%' }}>
             <Grid item xs={12} md={6}>
               <Paper sx={{ p: 3, borderRadius: 3, height: '100%' }}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary">TIPOS DE RECLAMO — FRECUENCIA</Typography>
@@ -617,7 +631,7 @@ export default function DashboardSupervision() {
           </Grid>
 
           {/* Por local + últimos reclamos */}
-          <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid container spacing={2} sx={{ mb: 3, width: '100%' }}>
             <Grid item xs={12} md={7}>
               <Paper sx={{ p: 3, borderRadius: 3, height: '100%' }}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary">RECLAMOS POR LOCAL (TOP 15)</Typography>

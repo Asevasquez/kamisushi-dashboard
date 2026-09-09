@@ -124,15 +124,15 @@ export default function AsignarLocales() {
         <Grid item xs={12} sm={4}>
           <Card sx={{ bgcolor: '#fff5f5', border: '1px solid #ffcdd2' }}>
             <CardContent sx={{ py: 1.5 }}>
-              <Typography variant="caption" color="textSecondary">Total usuarios</Typography>
-              <Typography variant="h5" fontWeight={700} color="#d32f2f">{usuarios.length}</Typography>
+              <Typography variant="caption" sx={{ color: '#6b4a4a' }}>Total usuarios</Typography>
+              <Typography variant="h5" fontWeight={700} color="#f20000">{usuarios.length}</Typography>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} sm={4}>
           <Card sx={{ bgcolor: '#f5f8ff', border: '1px solid #bbdefb' }}>
             <CardContent sx={{ py: 1.5 }}>
-              <Typography variant="caption" color="textSecondary">Total locales</Typography>
+              <Typography variant="caption" sx={{ color: '#4a5a6b' }}>Total locales</Typography>
               <Typography variant="h5" fontWeight={700} color="#2196f3">{locales.length}</Typography>
             </CardContent>
           </Card>
@@ -140,7 +140,7 @@ export default function AsignarLocales() {
         <Grid item xs={12} sm={4}>
           <Card sx={{ bgcolor: '#f5fff5', border: '1px solid #c8e6c9' }}>
             <CardContent sx={{ py: 1.5 }}>
-              <Typography variant="caption" color="textSecondary">Con asignación</Typography>
+              <Typography variant="caption" sx={{ color: '#4a6b4f' }}>Con asignación</Typography>
               <Typography variant="h5" fontWeight={700} color="#4caf50">
                 {usuarios.filter(u => u.localesAsignados?.length > 0).length}
               </Typography>
@@ -152,7 +152,7 @@ export default function AsignarLocales() {
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
-            <TableRow sx={{ backgroundColor: '#d32f2f' }}>
+            <TableRow sx={{ backgroundColor: '#f20000' }}>
               <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Usuario</TableCell>
               <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Rol</TableCell>
               <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Locales Asignados</TableCell>
@@ -207,7 +207,7 @@ export default function AsignarLocales() {
                         size="small"
                         startIcon={<AssignmentIcon />}
                         onClick={() => abrirAsignacion(usuario)}
-                        sx={{ borderColor: '#d32f2f', color: '#d32f2f' }}
+                        sx={{ borderColor: '#f20000', color: '#f20000' }}
                       >
                         Asignar Locales
                       </Button>
@@ -222,7 +222,7 @@ export default function AsignarLocales() {
 
       {/* Dialog asignación */}
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ bgcolor: '#d32f2f', color: '#fff' }}>
+        <DialogTitle sx={{ bgcolor: '#f20000', color: '#fff' }}>
           <Box display="flex" alignItems="center" gap={1}>
             <StoreIcon />
             <Box>
@@ -253,17 +253,17 @@ export default function AsignarLocales() {
                     onClick={() => toggleLocal(local._id)}
                     sx={{
                       p: 1.5, cursor: 'pointer',
-                      borderColor: asignado ? '#d32f2f' : '#e0e0e0',
+                      borderColor: asignado ? '#f20000' : '#e0e0e0',
                       bgcolor: asignado ? '#fff5f5' : 'white',
                       transition: 'all 0.15s',
-                      '&:hover': { borderColor: '#d32f2f', bgcolor: '#fff5f5' },
+                      '&:hover': { borderColor: '#f20000', bgcolor: '#fff5f5' },
                     }}
                   >
                     <Box display="flex" alignItems="center" gap={1}>
                       <Checkbox
                         checked={asignado}
                         size="small"
-                        sx={{ p: 0, color: '#d32f2f', '&.Mui-checked': { color: '#d32f2f' } }}
+                        sx={{ p: 0, color: '#f20000', '&.Mui-checked': { color: '#f20000' } }}
                         onChange={() => toggleLocal(local._id)}
                         onClick={(e) => e.stopPropagation()}
                       />
@@ -273,7 +273,7 @@ export default function AsignarLocales() {
                           <Typography variant="caption" color="textSecondary">{local.ciudad}</Typography>
                         )}
                       </Box>
-                      {asignado && <CheckIcon fontSize="small" sx={{ color: '#d32f2f' }} />}
+                      {asignado && <CheckIcon fontSize="small" sx={{ color: '#f20000' }} />}
                     </Box>
                   </Paper>
                 </Grid>
@@ -283,7 +283,7 @@ export default function AsignarLocales() {
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={() => setDialogOpen(false)}>Cancelar</Button>
-          <Button onClick={handleGuardar} variant="contained" sx={{ bgcolor: '#d32f2f' }}
+          <Button onClick={handleGuardar} variant="contained" sx={{ bgcolor: '#f20000' }}
             disabled={guardando}>
             {guardando ? <CircularProgress size={20} color="inherit" /> : 'Guardar Asignación'}
           </Button>
