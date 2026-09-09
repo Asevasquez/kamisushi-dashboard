@@ -9,8 +9,8 @@ import {
 } from '@mui/material';
 import { Refresh as RefreshIcon, RestartAlt as RestartAltIcon, Download as DownloadIcon } from '@mui/icons-material';
 import {
-  PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
-  CartesianGrid, Tooltip as RechartsTooltip, LineChart, Line, LabelList,
+  PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis,
+  CartesianGrid, Tooltip as RechartsTooltip, LineChart, Line,
 } from 'recharts';
 import api from '../services/api';
 import ExcelJS from 'exceljs';
@@ -96,12 +96,12 @@ function KpiCard({ label, value, sub, color }) {
   );
 }
 
-function BarraCumplimiento({ label, pct, color }) {
+function BarraCumplimiento({ label, pct, color, valueLabel }) {
   return (
     <Box sx={{ mb: 2 }}>
       <Box display="flex" justifyContent="space-between" mb={0.5}>
         <Typography variant="body2">{label}</Typography>
-        <Typography variant="body2" fontWeight={700} sx={{ color }}>{fmtPct(pct)}</Typography>
+        <Typography variant="body2" fontWeight={700} sx={{ color }}>{valueLabel ?? fmtPct(pct)}</Typography>
       </Box>
       <Box sx={{ height: 8, borderRadius: 4, bgcolor: 'action.hover', overflow: 'hidden' }}>
         <Box sx={{ height: '100%', width: `${Math.min(pct || 0, 100)}%`, bgcolor: color, borderRadius: 4 }} />
@@ -420,21 +420,13 @@ export default function DashboardSupervision() {
             <Grid item xs={12} md={6}>
               <Paper sx={{ p: 3, borderRadius: 3, height: '100%' }}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary">SUPERVISORES</Typography>
-                <Box sx={{ width: '100%', height: Math.max(220, resumen.supervisores.length * 56) }}>
-                  <ResponsiveContainer>
-                    <BarChart data={resumen.supervisores} layout="vertical" margin={{ left: 20, right: 40 }}>
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                      <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
-                      <YAxis type="category" dataKey="nombre" width={110} tick={{ fontSize: 13 }} />
-                      <RechartsTooltip formatter={(v) => `${v.toFixed(1)}%`} />
-                      <Bar dataKey="promedio" radius={[0, 6, 6, 0]} barSize={26}>
-                        {resumen.supervisores.map((s, i) => (
-                          <Cell key={i} fill={colorPorCumplimiento(s.promedio)} />
-                        ))}
-                        <LabelList dataKey="promedio" position="right" formatter={(v) => `${v.toFixed(1)}%`} style={{ fontSize: 12, fontWeight: 700, fill: 'var(--mui-palette-text-primary, #333)' }} />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                <Box sx={{ mt: 2, maxHeight: 320, overflowY: 'auto' }}>
+                  {resumen.supervisores.map(s => (
+                    <BarraCumplimiento key={s.supervisorId} label={s.nombre} pct={s.promedio} color={colorPorCumplimiento(s.promedio)} />
+                  ))}
+                  {resumen.supervisores.length === 0 && (
+                    <Typography color="text.secondary" textAlign="center" py={2} fontSize={13}>Sin datos para el período seleccionado.</Typography>
+                  )}
                 </Box>
               </Paper>
             </Grid>
@@ -600,16 +592,19 @@ export default function DashboardSupervision() {
             <Grid item xs={12} md={6}>
               <Paper sx={{ p: 3, borderRadius: 3, height: '100%' }}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary">TIPOS DE RECLAMO — FRECUENCIA</Typography>
-                <Box sx={{ width: '100%', height: Math.max(300, reclamos.tiposFrecuencia.length * 24) }}>
-                  <ResponsiveContainer>
-                    <BarChart data={reclamos.tiposFrecuencia} layout="vertical" margin={{ left: 40 }}>
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                      <XAxis type="number" />
-                      <YAxis type="category" dataKey="tipo" width={140} tick={{ fontSize: 10 }} />
-                      <RechartsTooltip />
-                      <Bar dataKey="total" fill="#1976d2" radius={[0, 4, 4, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                <Box sx={{ mt: 2, maxHeight: 340, overflowY: 'auto' }}>
+                  {(() => {
+                    const maxTotal = Math.max(...reclamos.tiposFrecuencia.map(t => t.total), 1);
+                    return reclamos.tiposFrecuencia.map(t => (
+                      <BarraCumplimiento
+                        key={t.tipo}
+                        label={t.tipo}
+                        pct={(t.total / maxTotal) * 100}
+                        valueLabel={String(t.total)}
+                        color="#1976d2"
+                      />
+                    ));
+                  })()}
                 </Box>
               </Paper>
             </Grid>
