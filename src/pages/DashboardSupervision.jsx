@@ -743,10 +743,16 @@ export default function DashboardSupervision() {
                   Filtrar exportación por fecha de revisión
                 </Typography>
               </Box>
-              <TextField size="small" type="date" label="Desde" value={exportDesde} onChange={(e) => setExportDesde(e.target.value)}
-                InputLabelProps={{ shrink: true }} sx={{ width: 160, bgcolor: 'background.paper', borderRadius: 1 }} />
-              <TextField size="small" type="date" label="Hasta" value={exportHasta} onChange={(e) => setExportHasta(e.target.value)}
-                InputLabelProps={{ shrink: true }} sx={{ width: 160, bgcolor: 'background.paper', borderRadius: 1 }} />
+              <Box display="flex" alignItems="center" gap={0.75}>
+                <Typography variant="caption" fontWeight={600} color="text.secondary">Desde</Typography>
+                <TextField size="small" type="date" value={exportDesde} onChange={(e) => setExportDesde(e.target.value)}
+                  sx={{ width: 150, bgcolor: 'background.paper', borderRadius: 1 }} />
+              </Box>
+              <Box display="flex" alignItems="center" gap={0.75}>
+                <Typography variant="caption" fontWeight={600} color="text.secondary">Hasta</Typography>
+                <TextField size="small" type="date" value={exportHasta} onChange={(e) => setExportHasta(e.target.value)}
+                  sx={{ width: 150, bgcolor: 'background.paper', borderRadius: 1 }} />
+              </Box>
               <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', sm: 'block' } }} />
               <Box display="flex" gap={1} flexWrap="wrap" sx={{ ml: { xs: 0, sm: 'auto' } }}>
                 <Button size="small" variant="contained" disableElevation startIcon={<DownloadIcon fontSize="small" />} onClick={exportarTablaCompleta}
