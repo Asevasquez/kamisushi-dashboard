@@ -93,11 +93,11 @@ function colorPorCumplimiento(pct) {
   return '#f20000';
 }
 
-function KpiCard({ label, value, sub, color }) {
+function KpiCard({ label, value, sub, color, icon }) {
   return (
     <Paper sx={{ p: 3, borderRadius: 3, height: '100%', borderBottom: `3px solid ${color || '#e0e0e0'}` }}>
       <Typography variant="body2" sx={{ color: 'text.secondary', letterSpacing: 0.5, fontWeight: 600, fontSize: 13 }}>
-        {label.toUpperCase()}
+        {icon ? `${icon} ` : ''}{label.toUpperCase()}
       </Typography>
       <Typography variant="h3" fontWeight={800} sx={{ color: color || 'text.primary', mt: 0.75 }}>
         {value}
@@ -394,16 +394,16 @@ export default function DashboardSupervision() {
           {/* KPIs principales */}
           <Grid container spacing={2} sx={{ mb: 3, width: '100%' }}>
             <Grid item xs={12} sm={6} md={3}>
-              <KpiCard label="Cumplimiento general" value={fmtPct(resumen.cumplimientoGeneral)} sub={`${resumen.totalRevisiones} revisiones`} color="#1976d2" />
+              <KpiCard icon="📋" label="Cumplimiento general" value={fmtPct(resumen.cumplimientoGeneral)} sub={`${resumen.totalRevisiones} revisiones`} color="#1976d2" />
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <KpiCard label="Locales evaluados" value={resumen.localesEvaluados} sub={`${resumen.totalRevisiones} visitas`} />
+              <KpiCard icon="🏪" label="Locales evaluados" value={resumen.localesEvaluados} sub={`${resumen.totalRevisiones} visitas`} color="#333333" />
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <KpiCard label="Reclamos promedio" value={(resumen.reclamosPromedioPorVisita || 0).toFixed(1)} sub="Por visita" color="#f20000" />
+              <KpiCard icon="📢" label="Reclamos promedio" value={(resumen.reclamosPromedioPorVisita || 0).toFixed(1)} sub="Por visita" color="#f20000" />
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <KpiCard label="Pésimo + Malo" value={resumen.pesimoMalo} sub={`${fmtPct(resumen.pesimoMaloPct)} del total`} color="#f20000" />
+              <KpiCard icon="⚠️" label="Pésimo + Malo" value={resumen.pesimoMalo} sub={`${fmtPct(resumen.pesimoMaloPct)} del total`} color="#f20000" />
             </Grid>
           </Grid>
 

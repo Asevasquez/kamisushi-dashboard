@@ -275,63 +275,38 @@ export default function Dashboard() {
         </Paper>
       )}
 
-      {/* ─── Fila inferior: Destacados + Sin revisión ────── */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        {/* Destacados */}
-        {(mejorLocal || peorLocal) && (
-          <Grid item xs={12} md={4}>
-            <Paper sx={{ borderRadius: 2, p: 0, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', height: '100%' }}>
-              <Box sx={{ bgcolor: isDark ? '#2a2a2a' : '#fafafa', borderBottom: `0.5px solid ${isDark ? '#333' : '#f0f0f0'}`, px: 2, py: 1.2 }}>
-                <Typography variant="subtitle2" fontWeight={500} color="text.primary">
-                  Destacados del mes
-                </Typography>
-              </Box>
-              <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                {mejorLocal && (
-                  <Box sx={{ p: 1.5, bgcolor: isDark ? '#1b3a1b' : '#f0fdf4', borderRadius: 1.5, border: `0.5px solid ${isDark ? '#4caf50' : '#86efac'}` }}>
-                    <Typography variant="caption" sx={{ color: '#15803d', fontWeight: 600, display: 'block' }}>
-                      Mejor local
-                    </Typography>
-                    <Typography variant="subtitle2" sx={{ color: isDark ? '#a5d6a7' : '#14532d', fontWeight: 500 }}>
-                      {mejorLocal[0]}
-                    </Typography>
-                    <Typography variant="h6" sx={{ color: '#16a34a', fontWeight: 500, lineHeight: 1.2 }}>
-                      {mejorLocal[1].promedioPorcentaje.toFixed(1)}%
-                    </Typography>
-                  </Box>
-                )}
-                {peorLocal && localesOrdenados.length > 1 && (
-                  <Box sx={{ p: 1.5, bgcolor: isDark ? '#3d1515' : '#fff5f5', borderRadius: 1.5, border: `0.5px solid ${isDark ? '#ef5350' : '#fca5a5'}` }}>
-                    <Typography variant="caption" sx={{ color: '#dc2626', fontWeight: 600, display: 'block' }}>
-                      Requiere atención
-                    </Typography>
-                    <Typography variant="subtitle2" sx={{ color: isDark ? '#ef9a9a' : '#7f1d1d', fontWeight: 500 }}>
-                      {peorLocal[0]}
-                    </Typography>
-                    <Typography variant="h6" sx={{ color: getPColor(peorLocal[1].promedioPorcentaje), fontWeight: 500, lineHeight: 1.2 }}>
-                      {peorLocal[1].promedioPorcentaje.toFixed(1)}%
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
-            </Paper>
-          </Grid>
-        )}
+      {/* ─── Requiere atención (única info de "Destacados" que no está arriba) ─── */}
+      {peorLocal && localesOrdenados.length > 1 && (
+        <Box sx={{
+          display: 'flex', alignItems: 'center', gap: 1.5, mb: 3, p: 1.5, borderRadius: 2,
+          bgcolor: isDark ? '#3d1515' : '#fff5f5', border: `0.5px solid ${isDark ? '#ef5350' : '#fca5a5'}`,
+        }}>
+          <WarningIcon sx={{ color: '#dc2626', fontSize: 22 }} />
+          <Typography variant="body2" sx={{ color: isDark ? '#ef9a9a' : '#7f1d1d' }}>
+            <strong>Requiere atención:</strong> {peorLocal[0]} tiene el promedio más bajo del mes con{' '}
+            <strong style={{ color: getPColor(peorLocal[1].promedioPorcentaje) }}>
+              {peorLocal[1].promedioPorcentaje.toFixed(1)}%
+            </strong>.
+          </Typography>
+        </Box>
+      )}
 
+      {/* ─── Fila inferior: Sin revisión + Supervisores (2 columnas más anchas) ─── */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
         {/* Locales sin revisión */}
         {localesSinRevision.length > 0 && (
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={6}>
             <Paper sx={{ borderRadius: 2, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', height: '100%' }}>
               <Box sx={{ bgcolor: isDark ? '#2a2a2a' : '#fafafa', borderBottom: `0.5px solid ${isDark ? '#333' : '#f0f0f0'}`, px: 2, py: 1.2 }}>
                 <Typography variant="subtitle2" fontWeight={500} color="text.primary">
                   Sin revisión este mes ({localesSinRevision.length})
                 </Typography>
               </Box>
-              <Box sx={{ p: 0 }}>
+              <Box sx={{ p: 1, maxHeight: 400, overflowY: 'auto' }}>
                 {localesSinRevision.map((l, i) => (
                   <Box key={l._id} display="flex" alignItems="center" gap={1} sx={{
-                    px: 2, py: 1.2,
-                    borderBottom: i < localesSinRevision.length - 1 ? `0.5px solid ${isDark ? '#333' : '#f0f0f0'}` : 'none',
+                    px: 1.5, py: 1, mb: 0.5, borderRadius: 1.5,
+                    bgcolor: isDark ? '#3d2f10' : '#fffbeb',
                   }}>
                     <CancelIcon sx={{ fontSize: 14, color: '#f59e0b' }} />
                     <Box>
@@ -347,34 +322,38 @@ export default function Dashboard() {
 
         {/* Supervisores */}
         {supervisores.length > 0 && (
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={6}>
             <Paper sx={{ borderRadius: 2, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', height: '100%' }}>
               <Box sx={{ bgcolor: isDark ? '#2a2a2a' : '#fafafa', borderBottom: `0.5px solid ${isDark ? '#333' : '#f0f0f0'}`, px: 2, py: 1.2 }}>
                 <Typography variant="subtitle2" fontWeight={500} color="text.primary">
-                  Supervisores ({supervisores.length})
+                  Ranking de supervisores ({supervisores.length})
                 </Typography>
               </Box>
-              <Box sx={{ maxHeight: 340, overflowY: 'auto' }}>
+              <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
                 {supervisores.map((sup, i) => {
                   const pct = parseFloat(sup.promedio);
+                  const medalla = ['🥇', '🥈', '🥉'][i];
                   return (
                     <Box key={i} display="flex" alignItems="center" gap={1.5} sx={{
                       px: 2, py: 1.2,
                       borderBottom: i < supervisores.length - 1 ? `0.5px solid ${isDark ? '#333' : '#f0f0f0'}` : 'none',
                     }}>
-                      <Box sx={{ width: 28, height: 28, borderRadius: '50%', bgcolor: getPColor(pct),
-                        display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Typography sx={{ color: '#fff', fontSize: 11, fontWeight: 600 }}>
+                      <Box sx={{ width: 22, textAlign: 'center', fontSize: 16 }}>
+                        {medalla || <Typography variant="caption" color="text.secondary">{i + 1}</Typography>}
+                      </Box>
+                      <Box sx={{ width: 30, height: 30, borderRadius: '50%', bgcolor: getPColor(pct),
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Typography sx={{ color: '#fff', fontSize: 12, fontWeight: 600 }}>
                           {sup.supervisorNombre?.[0]?.toUpperCase()}
                         </Typography>
                       </Box>
                       <Box sx={{ flex: 1 }}>
                         <Typography variant="body2" fontWeight={500} noWrap>{sup.supervisorNombre}</Typography>
                         <LinearProgress variant="determinate" value={pct}
-                          sx={{ height: 4, borderRadius: 2, mt: 0.3, bgcolor: `${getPColor(pct)}22`,
+                          sx={{ height: 5, borderRadius: 2, mt: 0.3, bgcolor: `${getPColor(pct)}22`,
                             '& .MuiLinearProgress-bar': { bgcolor: getPColor(pct) } }} />
                       </Box>
-                      <Typography variant="caption" fontWeight={500} sx={{ color: getPColor(pct) }}>
+                      <Typography variant="body2" fontWeight={600} sx={{ color: getPColor(pct) }}>
                         {pct.toFixed(1)}%
                       </Typography>
                     </Box>
