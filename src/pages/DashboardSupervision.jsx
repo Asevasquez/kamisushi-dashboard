@@ -7,7 +7,7 @@ import {
   CircularProgress, Paper, Button, Tabs, Tab, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Chip, Divider, Checkbox, ListItemText, TextField,
 } from '@mui/material';
-import { Refresh as RefreshIcon, RestartAlt as RestartAltIcon, Download as DownloadIcon } from '@mui/icons-material';
+import { Refresh as RefreshIcon, RestartAlt as RestartAltIcon, Download as DownloadIcon, CalendarMonth as CalendarMonthIcon } from '@mui/icons-material';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis,
   CartesianGrid, Tooltip as RechartsTooltip, LineChart, Line,
@@ -190,10 +190,18 @@ export default function DashboardSupervision() {
   // ─── Exportar "tabla tal cual" — mismas columnas que se ven en pantalla ───
   // Filtra por la fecha de la REVISIÓN (no la fecha propia del reclamo, que puede
   // ser distinta) — usado solo al exportar, independiente del filtro "Mes" general.
+  // Convierte "YYYY-MM-DD" (lo que entrega <input type="date">) a un Date en
+  // horario LOCAL a medianoche — new Date("YYYY-MM-DD") lo interpreta como
+  // medianoche UTC, lo que en Chile corre la fecha al día anterior por la tarde/noche.
+  const parseFechaInputLocal = (str) => {
+    const [y, m, d] = str.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
+
   const filtrarPorFechaRevision = (lista) => {
     if (!exportDesde && !exportHasta) return lista;
-    const desde = exportDesde ? new Date(exportDesde) : null;
-    const hasta = exportHasta ? new Date(exportHasta) : null;
+    const desde = exportDesde ? parseFechaInputLocal(exportDesde) : null;
+    const hasta = exportHasta ? parseFechaInputLocal(exportHasta) : null;
     if (hasta) hasta.setHours(23, 59, 59, 999);
     return lista.filter(r => {
       const f = new Date(r.fechaRevision);
@@ -212,6 +220,7 @@ export default function DashboardSupervision() {
       { header: 'Fecha', key: 'fecha', width: 12 },
       { header: 'Tipo', key: 'tipo', width: 30 },
       { header: 'Local', key: 'local', width: 20 },
+      { header: 'Fecha Revisión', key: 'fechaRevision', width: 14 },
       { header: 'Código Local', key: 'codigoLocal', width: 14 },
       { header: 'Supervisor', key: 'supervisor', width: 18 },
       { header: 'Solución', key: 'solucion', width: 14 },
@@ -228,6 +237,7 @@ export default function DashboardSupervision() {
         fecha: fmtFechaDDMMAAAA(r.fecha),
         tipo: r.tipo,
         local: r.localNombre,
+        fechaRevision: fmtFechaDDMMAAAA(r.fechaRevision),
         codigoLocal: r.localCodigo || '',
         supervisor: r.supervisor,
         solucion: r.entregoSolucion,
@@ -249,6 +259,7 @@ export default function DashboardSupervision() {
     ws.columns = [
       { header: 'CÓDIGO', key: 'codigoLocal', width: 12 },
       { header: 'LOCAL', key: 'local', width: 20 },
+      { header: 'FECHA REVISIÓN', key: 'fechaRevision', width: 14 },
       { header: 'FECHA DE INGRESO', key: 'fecha', width: 16 },
       { header: 'DATOS DEL CLIENTE', key: 'cliente', width: 22 },
       { header: 'CONTACTO', key: 'contacto', width: 15 },
@@ -275,6 +286,7 @@ export default function DashboardSupervision() {
       const row = ws.addRow({
         codigoLocal: r.localCodigo || '',
         local: r.localNombre,
+        fechaRevision: fmtFechaConGuiones(r.fechaRevision),
         fecha: fmtFechaConGuiones(r.fecha),
         cliente: '', // se llena manualmente después de exportar
         contacto: limpiarTelefono(r.telefono),
@@ -715,26 +727,34 @@ export default function DashboardSupervision() {
 
           {/* Tabla completa */}
           <Paper sx={{ p: 0, borderRadius: 3, overflow: 'hidden' }}>
-            <Box p={2} display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
+            <Box p={2} pb={1.5}>
               <Typography variant="caption" fontWeight={700} color="text.secondary">
                 TABLA COMPLETA — TODOS LOS RECLAMOS ({reclamos.reclamos.length})
               </Typography>
-              <Box display="flex" gap={1} alignItems="center" flexWrap="wrap">
-                <Typography variant="caption" color="text.secondary">Exportar por fecha de revisión:</Typography>
-                <Box display="flex" alignItems="center" gap={0.5}>
-                  <Typography variant="caption" color="text.secondary">Desde</Typography>
-                  <TextField size="small" type="date" value={exportDesde} onChange={(e) => setExportDesde(e.target.value)}
-                    sx={{ width: 150 }} />
-                </Box>
-                <Box display="flex" alignItems="center" gap={0.5}>
-                  <Typography variant="caption" color="text.secondary">Hasta</Typography>
-                  <TextField size="small" type="date" value={exportHasta} onChange={(e) => setExportHasta(e.target.value)}
-                    sx={{ width: 150 }} />
-                </Box>
-                <Button size="small" variant="outlined" startIcon={<DownloadIcon fontSize="small" />} onClick={exportarTablaCompleta}>
+            </Box>
+            <Box
+              mx={2} mb={2} p={1.5}
+              display="flex" alignItems="center" gap={2} flexWrap="wrap"
+              sx={{ bgcolor: 'action.hover', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}
+            >
+              <Box display="flex" alignItems="center" gap={1}>
+                <CalendarMonthIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+                <Typography variant="body2" fontWeight={600} color="text.secondary">
+                  Filtrar exportación por fecha de revisión
+                </Typography>
+              </Box>
+              <TextField size="small" type="date" label="Desde" value={exportDesde} onChange={(e) => setExportDesde(e.target.value)}
+                InputLabelProps={{ shrink: true }} sx={{ width: 160, bgcolor: 'background.paper', borderRadius: 1 }} />
+              <TextField size="small" type="date" label="Hasta" value={exportHasta} onChange={(e) => setExportHasta(e.target.value)}
+                InputLabelProps={{ shrink: true }} sx={{ width: 160, bgcolor: 'background.paper', borderRadius: 1 }} />
+              <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', sm: 'block' } }} />
+              <Box display="flex" gap={1} flexWrap="wrap" sx={{ ml: { xs: 0, sm: 'auto' } }}>
+                <Button size="small" variant="contained" disableElevation startIcon={<DownloadIcon fontSize="small" />} onClick={exportarTablaCompleta}
+                  sx={{ bgcolor: '#f20000', '&:hover': { bgcolor: '#c00000' } }}>
                   Exportar tabla
                 </Button>
-                <Button size="small" variant="outlined" startIcon={<DownloadIcon fontSize="small" />} onClick={exportarResumen}>
+                <Button size="small" variant="outlined" startIcon={<DownloadIcon fontSize="small" />} onClick={exportarResumen}
+                  sx={{ borderColor: '#f20000', color: '#f20000', '&:hover': { borderColor: '#c00000', bgcolor: 'rgba(242,0,0,0.04)' } }}>
                   Exportar resumen
                 </Button>
               </Box>
@@ -746,6 +766,7 @@ export default function DashboardSupervision() {
                     <TableCell>Fecha</TableCell>
                     <TableCell>Tipo</TableCell>
                     <TableCell>Local</TableCell>
+                    <TableCell>Fecha Revisión</TableCell>
                     <TableCell>Código</TableCell>
                     <TableCell>Supervisor</TableCell>
                     <TableCell align="center">Solución</TableCell>
@@ -762,6 +783,7 @@ export default function DashboardSupervision() {
                         <TableCell>{fmtFechaDDMMAAAA(r.fecha)}</TableCell>
                         <TableCell>{r.tipo}</TableCell>
                         <TableCell>{r.localNombre}</TableCell>
+                        <TableCell>{fmtFechaDDMMAAAA(r.fechaRevision)}</TableCell>
                         <TableCell>{r.localCodigo || '—'}</TableCell>
                         <TableCell>{r.supervisor}</TableCell>
                         <TableCell align="center" sx={{ color: r.entregoSolucion !== 'NO' ? '#2e7d32' : '#f20000', fontWeight: 700 }}>
