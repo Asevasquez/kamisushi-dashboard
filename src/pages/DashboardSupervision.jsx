@@ -40,11 +40,12 @@ function fmtFechaConGuiones(fecha) {
 
 // Deja solo los 8 dígitos del número móvil, quitando el código de país (56)
 // y el 9 inicial de celular si vienen incluidos — "+56 9 1234 5678" -> "12345678"
+// Deja solo los 9 dígitos del número móvil (el 9 inicial + los 8 siguientes),
+// quitando el código de país (56) si viene incluido — "+56 9 1234 5678" -> "912345678"
 function limpiarTelefono(tel) {
   if (!tel) return '';
   let d = String(tel).replace(/\D/g, '');
-  if (d.startsWith('56')) d = d.slice(2);
-  if (d.startsWith('9') && d.length === 9) d = d.slice(1);
+  if (d.startsWith('56') && d.length > 9) d = d.slice(2);
   return d;
 }
 
