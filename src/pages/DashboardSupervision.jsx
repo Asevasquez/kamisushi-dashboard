@@ -205,7 +205,7 @@ export default function DashboardSupervision() {
 
   const exportarTablaCompleta = async () => {
     const lista = filtrarPorFechaRevision(reclamos?.reclamos || []);
-    if (!lista.length) return;
+    if (!lista.length) { window.alert('No hay reclamos para exportar con el filtro de fecha actual.'); return; }
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('Reclamos');
     ws.columns = [
@@ -243,7 +243,7 @@ export default function DashboardSupervision() {
   // ─── Exportar "resumen" — formato para carga manual de datos del cliente ───
   const exportarResumen = async () => {
     const lista = filtrarPorFechaRevision(reclamos?.reclamos || []);
-    if (!lista.length) return;
+    if (!lista.length) { window.alert('No hay reclamos para exportar con el filtro de fecha actual.'); return; }
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('Resumen');
     ws.columns = [
@@ -721,10 +721,16 @@ export default function DashboardSupervision() {
               </Typography>
               <Box display="flex" gap={1} alignItems="center" flexWrap="wrap">
                 <Typography variant="caption" color="text.secondary">Exportar por fecha de revisión:</Typography>
-                <TextField size="small" type="date" label="Desde" value={exportDesde} onChange={(e) => setExportDesde(e.target.value)}
-                  InputLabelProps={{ shrink: true }} sx={{ width: 150 }} />
-                <TextField size="small" type="date" label="Hasta" value={exportHasta} onChange={(e) => setExportHasta(e.target.value)}
-                  InputLabelProps={{ shrink: true }} sx={{ width: 150 }} />
+                <Box display="flex" alignItems="center" gap={0.5}>
+                  <Typography variant="caption" color="text.secondary">Desde</Typography>
+                  <TextField size="small" type="date" value={exportDesde} onChange={(e) => setExportDesde(e.target.value)}
+                    sx={{ width: 150 }} />
+                </Box>
+                <Box display="flex" alignItems="center" gap={0.5}>
+                  <Typography variant="caption" color="text.secondary">Hasta</Typography>
+                  <TextField size="small" type="date" value={exportHasta} onChange={(e) => setExportHasta(e.target.value)}
+                    sx={{ width: 150 }} />
+                </Box>
                 <Button size="small" variant="outlined" startIcon={<DownloadIcon fontSize="small" />} onClick={exportarTablaCompleta}>
                   Exportar tabla
                 </Button>
