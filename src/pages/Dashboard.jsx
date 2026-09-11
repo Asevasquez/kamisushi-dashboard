@@ -180,23 +180,23 @@ export default function Dashboard() {
 
       {/* ─── KPI Cards ───────────────────────────────────── */}
       <Grid container spacing={2} sx={{ mb: 3, width: '100%' }}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <KPICard title="TOTAL REVISIONES" value={totalRevisiones}
             subtitle="Este mes" color="#f20000" icon={<AssignmentIcon />} />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <KPICard title="PROMEDIO GENERAL"
             value={`${promedioGeneral.toFixed(1)}%`}
             subtitle={getCat(promedioGeneral)}
             color={getPColor(promedioGeneral)} />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <KPICard title="MEJOR LOCAL"
             value={mejorLocal ? mejorLocal[0].substring(0, 12) : '—'}
             subtitle={mejorLocal ? `${mejorLocal[1].promedioPorcentaje.toFixed(1)}%` : ''}
             color="#10b981" />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <KPICard title="LOCALES REVISADOS"
             value={`${Object.keys(revisionesMes).length}/${localesActivos.length}`}
             subtitle={localesSinRevision.length > 0 ? `${localesSinRevision.length} sin revisar` : 'Todos revisados'}
@@ -333,7 +333,7 @@ export default function Dashboard() {
       <Grid container spacing={2} sx={{ mb: 3, width: '100%' }}>
         {/* Locales sin revisión */}
         {localesSinRevision.length > 0 && (
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Paper sx={{ borderRadius: 3, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', height: '100%' }}>
               <Box sx={{ bgcolor: isDark ? '#2a2a2a' : '#fafafa', borderBottom: `0.5px solid ${isDark ? '#333' : '#f0f0f0'}`, px: 2, py: 1.2 }}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.4 }}>
@@ -360,7 +360,7 @@ export default function Dashboard() {
 
         {/* Supervisores */}
         {supervisores.length > 0 && (
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Paper sx={{ borderRadius: 3, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', height: '100%' }}>
               <Box sx={{ bgcolor: isDark ? '#2a2a2a' : '#fafafa', borderBottom: `0.5px solid ${isDark ? '#333' : '#f0f0f0'}`, px: 2, py: 1.2 }}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.4 }}>
