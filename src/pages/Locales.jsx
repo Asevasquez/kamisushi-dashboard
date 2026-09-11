@@ -8,7 +8,7 @@ import {
 import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon } from '@mui/icons-material';
 import api from '../services/api';
 
-const emptyForm = { nombre: '', direccion: '', ciudad: '', activo: true };
+const emptyForm = { nombre: '', direccion: '', ciudad: '', activo: true, codigoExterno: '' };
 
 export default function Locales() {
   const [locales, setLocales] = useState([]);
@@ -34,7 +34,7 @@ export default function Locales() {
 
   const handleAbrir = (local = null) => {
     if (local) {
-      setFormData({ nombre: local.nombre, direccion: local.direccion, ciudad: local.ciudad, activo: local.activo });
+      setFormData({ nombre: local.nombre, direccion: local.direccion, ciudad: local.ciudad, activo: local.activo, codigoExterno: local.codigoExterno || '' });
       setEditingId(local._id);
     } else {
       setFormData(emptyForm);
@@ -83,7 +83,7 @@ export default function Locales() {
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4" fontWeight={600}>Gestión de Locales</Typography>
-        <Button variant="contained" startIcon={<AddIcon />} sx={{ bgcolor: '#d32f2f' }} onClick={() => handleAbrir()}>
+        <Button variant="contained" startIcon={<AddIcon />} sx={{ bgcolor: '#f20000' }} onClick={() => handleAbrir()}>
           Nuevo Local
         </Button>
       </Box>
@@ -93,8 +93,9 @@ export default function Locales() {
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
-            <TableRow sx={{ backgroundColor: '#d32f2f' }}>
+            <TableRow sx={{ backgroundColor: '#f20000' }}>
               <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Nombre</TableCell>
+              <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Código</TableCell>
               <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Dirección</TableCell>
               <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Ciudad</TableCell>
               <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Estado</TableCell>
@@ -105,6 +106,7 @@ export default function Locales() {
             {locales.map((local) => (
               <TableRow key={local._id} hover>
                 <TableCell fontWeight={600}><strong>{local.nombre}</strong></TableCell>
+                <TableCell>{local.codigoExterno || <Typography variant="caption" color="text.secondary">—</Typography>}</TableCell>
                 <TableCell>{local.direccion}</TableCell>
                 <TableCell>{local.ciudad}</TableCell>
                 <TableCell>
@@ -134,6 +136,11 @@ export default function Locales() {
                 onChange={(e) => setFormData({ ...formData, nombre: e.target.value })} />
             </Grid>
             <Grid item xs={12}>
+              <TextField fullWidth label="Código (opcional)" value={formData.codigoExterno}
+                helperText="Código del local en otro sistema (franquicias, POS, etc.), si aplica"
+                onChange={(e) => setFormData({ ...formData, codigoExterno: e.target.value })} />
+            </Grid>
+            <Grid item xs={12}>
               <TextField fullWidth label="Dirección" value={formData.direccion}
                 onChange={(e) => setFormData({ ...formData, direccion: e.target.value })} />
             </Grid>
@@ -152,7 +159,7 @@ export default function Locales() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialogOpen(false)}>Cancelar</Button>
-          <Button onClick={handleGuardar} variant="contained" sx={{ bgcolor: '#d32f2f' }}>
+          <Button onClick={handleGuardar} variant="contained" sx={{ bgcolor: '#f20000' }}>
             {editingId ? 'Actualizar' : 'Crear'}
           </Button>
         </DialogActions>

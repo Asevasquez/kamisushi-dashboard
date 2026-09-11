@@ -5,7 +5,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box, Grid, Typography, FormControl, InputLabel, Select, MenuItem,
   CircularProgress, Paper, Button, Tabs, Tab, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, Chip, Divider, Checkbox, ListItemText,
+  TableContainer, TableHead, TableRow, Chip, Divider, Checkbox, ListItemText, TextField,
 } from '@mui/material';
 import { Refresh as RefreshIcon, RestartAlt as RestartAltIcon, Download as DownloadIcon } from '@mui/icons-material';
 import {
@@ -36,6 +36,16 @@ function fmtFechaConGuiones(fecha) {
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const aaaa = d.getFullYear();
   return `${dd}-${mm}-${aaaa}`;
+}
+
+// Deja solo los 8 dígitos del número móvil, quitando el código de país (56)
+// y el 9 inicial de celular si vienen incluidos — "+56 9 1234 5678" -> "12345678"
+function limpiarTelefono(tel) {
+  if (!tel) return '';
+  let d = String(tel).replace(/\D/g, '');
+  if (d.startsWith('56')) d = d.slice(2);
+  if (d.startsWith('9') && d.length === 9) d = d.slice(1);
+  return d;
 }
 
 async function descargarWorkbook(workbook, nombreArchivo) {
@@ -120,6 +130,8 @@ export default function DashboardSupervision() {
   const [supervisorId, setSupervisorId] = useState('');
   const [localIds, setLocalIds] = useState([]);
   const [categoria, setCategoria] = useState('');
+  const [exportDesde, setExportDesde] = useState('');
+  const [exportHasta, setExportHasta] = useState('');
 
   const [resumen, setResumen] = useState(null);
   const [reclamos, setReclamos] = useState(null);
@@ -176,14 +188,31 @@ export default function DashboardSupervision() {
   };
 
   // ─── Exportar "tabla tal cual" — mismas columnas que se ven en pantalla ───
+  // Filtra por la fecha de la REVISIÓN (no la fecha propia del reclamo, que puede
+  // ser distinta) — usado solo al exportar, independiente del filtro "Mes" general.
+  const filtrarPorFechaRevision = (lista) => {
+    if (!exportDesde && !exportHasta) return lista;
+    const desde = exportDesde ? new Date(exportDesde) : null;
+    const hasta = exportHasta ? new Date(exportHasta) : null;
+    if (hasta) hasta.setHours(23, 59, 59, 999);
+    return lista.filter(r => {
+      const f = new Date(r.fechaRevision);
+      if (desde && f < desde) return false;
+      if (hasta && f > hasta) return false;
+      return true;
+    });
+  };
+
   const exportarTablaCompleta = async () => {
-    if (!reclamos?.reclamos?.length) return;
+    const lista = filtrarPorFechaRevision(reclamos?.reclamos || []);
+    if (!lista.length) return;
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('Reclamos');
     ws.columns = [
       { header: 'Fecha', key: 'fecha', width: 12 },
       { header: 'Tipo', key: 'tipo', width: 30 },
       { header: 'Local', key: 'local', width: 20 },
+      { header: 'Código Local', key: 'codigoLocal', width: 14 },
       { header: 'Supervisor', key: 'supervisor', width: 18 },
       { header: 'Solución', key: 'solucion', width: 14 },
       { header: 'Monto', key: 'monto', width: 12 },
@@ -193,16 +222,17 @@ export default function DashboardSupervision() {
     ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
     ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD32F2F' } };
 
-    reclamos.reclamos.forEach(r => {
+    lista.forEach(r => {
       const monto = parseFloat(String(r.montoCompensacion || '0').replace(/[^\d.-]/g, '')) || 0;
       ws.addRow({
         fecha: fmtFechaDDMMAAAA(r.fecha),
         tipo: r.tipo,
         local: r.localNombre,
+        codigoLocal: r.localCodigo || '',
         supervisor: r.supervisor,
         solucion: r.entregoSolucion,
         monto: monto > 0 ? monto : '',
-        telefono: r.telefono || '',
+        telefono: limpiarTelefono(r.telefono),
         comentario: r.comentario || '',
       });
     });
@@ -212,10 +242,12 @@ export default function DashboardSupervision() {
 
   // ─── Exportar "resumen" — formato para carga manual de datos del cliente ───
   const exportarResumen = async () => {
-    if (!reclamos?.reclamos?.length) return;
+    const lista = filtrarPorFechaRevision(reclamos?.reclamos || []);
+    if (!lista.length) return;
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('Resumen');
     ws.columns = [
+      { header: 'CÓDIGO', key: 'codigoLocal', width: 12 },
       { header: 'LOCAL', key: 'local', width: 20 },
       { header: 'FECHA DE INGRESO', key: 'fecha', width: 16 },
       { header: 'DATOS DEL CLIENTE', key: 'cliente', width: 22 },
@@ -231,7 +263,7 @@ export default function DashboardSupervision() {
     // ingresaron los reclamos (Reclamo #1, #2, #3...), igual que se ve en el detalle
     // de la revisión en "Revisiones".
     const grupos = new Map();
-    reclamos.reclamos.forEach(r => {
+    lista.forEach(r => {
       if (!grupos.has(r.revisionId)) grupos.set(r.revisionId, []);
       grupos.get(r.revisionId).push(r);
     });
@@ -241,10 +273,11 @@ export default function DashboardSupervision() {
 
     reclamosOrdenados.forEach(r => {
       const row = ws.addRow({
+        codigoLocal: r.localCodigo || '',
         local: r.localNombre,
         fecha: fmtFechaConGuiones(r.fecha),
         cliente: '', // se llena manualmente después de exportar
-        contacto: r.telefono || '',
+        contacto: limpiarTelefono(r.telefono),
         tipoReclamo: SEVERIDAD_LABEL[r.severidad] || '',
         categoria: r.tipo,
       });
@@ -686,7 +719,12 @@ export default function DashboardSupervision() {
               <Typography variant="caption" fontWeight={700} color="text.secondary">
                 TABLA COMPLETA — TODOS LOS RECLAMOS ({reclamos.reclamos.length})
               </Typography>
-              <Box display="flex" gap={1}>
+              <Box display="flex" gap={1} alignItems="center" flexWrap="wrap">
+                <Typography variant="caption" color="text.secondary">Exportar por fecha de revisión:</Typography>
+                <TextField size="small" type="date" label="Desde" value={exportDesde} onChange={(e) => setExportDesde(e.target.value)}
+                  InputLabelProps={{ shrink: true }} sx={{ width: 150 }} />
+                <TextField size="small" type="date" label="Hasta" value={exportHasta} onChange={(e) => setExportHasta(e.target.value)}
+                  InputLabelProps={{ shrink: true }} sx={{ width: 150 }} />
                 <Button size="small" variant="outlined" startIcon={<DownloadIcon fontSize="small" />} onClick={exportarTablaCompleta}>
                   Exportar tabla
                 </Button>
@@ -702,6 +740,7 @@ export default function DashboardSupervision() {
                     <TableCell>Fecha</TableCell>
                     <TableCell>Tipo</TableCell>
                     <TableCell>Local</TableCell>
+                    <TableCell>Código</TableCell>
                     <TableCell>Supervisor</TableCell>
                     <TableCell align="center">Solución</TableCell>
                     <TableCell align="right">Monto</TableCell>
@@ -717,12 +756,13 @@ export default function DashboardSupervision() {
                         <TableCell>{fmtFechaDDMMAAAA(r.fecha)}</TableCell>
                         <TableCell>{r.tipo}</TableCell>
                         <TableCell>{r.localNombre}</TableCell>
+                        <TableCell>{r.localCodigo || '—'}</TableCell>
                         <TableCell>{r.supervisor}</TableCell>
                         <TableCell align="center" sx={{ color: r.entregoSolucion !== 'NO' ? '#2e7d32' : '#f20000', fontWeight: 700 }}>
                           {r.entregoSolucion}
                         </TableCell>
                         <TableCell align="right">{monto > 0 ? `$${monto.toLocaleString('es-CL')}` : '—'}</TableCell>
-                        <TableCell>{r.telefono || '—'}</TableCell>
+                        <TableCell>{limpiarTelefono(r.telefono) || '—'}</TableCell>
                         <TableCell sx={{ maxWidth: 220, whiteSpace: 'normal' }}>{r.comentario || '—'}</TableCell>
                       </TableRow>
                     );
