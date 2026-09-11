@@ -178,31 +178,6 @@ export default function Dashboard() {
         </Box>
       )}
 
-      {/* ─── KPI Cards ───────────────────────────────────── */}
-      <Grid container spacing={2} sx={{ mb: 3, width: '100%' }}>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <KPICard title="TOTAL REVISIONES" value={totalRevisiones}
-            subtitle="Este mes" color="#f20000" icon={<AssignmentIcon />} />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <KPICard title="PROMEDIO GENERAL"
-            value={`${promedioGeneral.toFixed(1)}%`}
-            subtitle={getCat(promedioGeneral)}
-            color={getPColor(promedioGeneral)} />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <KPICard title="MEJOR LOCAL"
-            value={mejorLocal ? mejorLocal[0].substring(0, 12) : '—'}
-            subtitle={mejorLocal ? `${mejorLocal[1].promedioPorcentaje.toFixed(1)}%` : ''}
-            color="#10b981" />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <KPICard title="LOCALES REVISADOS"
-            value={`${Object.keys(revisionesMes).length}/${localesActivos.length}`}
-            subtitle={localesSinRevision.length > 0 ? `${localesSinRevision.length} sin revisar` : 'Todos revisados'}
-            color="#3b82f6" />
-        </Grid>
-      </Grid>
 
       {/* ─── Tabla locales del mes ───────────────────────── */}
       {localesOrdenados.length > 0 && (
@@ -278,6 +253,16 @@ export default function Dashboard() {
       {/* ─── Destacados del mes: franja de 4 tarjetas con degradado (igual al mockup) ─── */}
       {(mejorLocal || peorLocal) && (
         <Box sx={{ display: 'flex', gap: 1.5, mb: 3, flexWrap: { xs: 'wrap', md: 'nowrap' } }}>
+          <Box sx={{
+            flex: 1, minWidth: { xs: '100%', sm: 220 }, borderRadius: 2.5, p: 2.2,
+            background: 'linear-gradient(135deg, #7c3aed, #5b21b6)', color: '#fff',
+          }}>
+            <Typography variant="caption" sx={{ opacity: 0.9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+              📋 Total revisiones
+            </Typography>
+            <Typography variant="h5" fontWeight={800} sx={{ mt: 0.5, lineHeight: 1.2 }}>{totalRevisiones}</Typography>
+            <Typography variant="body2" sx={{ opacity: 0.95 }}>Este mes</Typography>
+          </Box>
           {mejorLocal && (
             <Box sx={{
               flex: 1, minWidth: { xs: '100%', sm: 220 }, borderRadius: 2.5, p: 2.2,
@@ -335,9 +320,9 @@ export default function Dashboard() {
         {localesSinRevision.length > 0 && (
           <Grid size={{ xs: 12, md: 6 }}>
             <Paper sx={{ borderRadius: 3, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', height: '100%' }}>
-              <Box sx={{ bgcolor: isDark ? '#2a2a2a' : '#fafafa', borderBottom: `0.5px solid ${isDark ? '#333' : '#f0f0f0'}`, px: 2, py: 1.2 }}>
-                <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.4 }}>
-                  Sin revisión este mes ({localesSinRevision.length})
+              <Box sx={{ bgcolor: isDark ? '#2a2a2a' : '#fafafa', borderBottom: `0.5px solid ${isDark ? '#333' : '#f0f0f0'}`, px: 2.5, py: 1.6 }}>
+                <Typography variant="subtitle2" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  ⚠️ Sin revisión este mes ({localesSinRevision.length})
                 </Typography>
               </Box>
               <Box sx={{ p: 1.5, maxHeight: 400, overflowY: 'auto', display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1 }}>
@@ -362,9 +347,9 @@ export default function Dashboard() {
         {supervisores.length > 0 && (
           <Grid size={{ xs: 12, md: 6 }}>
             <Paper sx={{ borderRadius: 3, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', height: '100%' }}>
-              <Box sx={{ bgcolor: isDark ? '#2a2a2a' : '#fafafa', borderBottom: `0.5px solid ${isDark ? '#333' : '#f0f0f0'}`, px: 2, py: 1.2 }}>
-                <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.4 }}>
-                  Ranking de supervisores ({supervisores.length})
+              <Box sx={{ bgcolor: isDark ? '#2a2a2a' : '#fafafa', borderBottom: `0.5px solid ${isDark ? '#333' : '#f0f0f0'}`, px: 2.5, py: 1.6 }}>
+                <Typography variant="subtitle2" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  🏅 Ranking de supervisores ({supervisores.length})
                 </Typography>
               </Box>
               <Box sx={{ maxHeight: 460, overflowY: 'auto' }}>
@@ -478,7 +463,7 @@ export default function Dashboard() {
 
       {/* ─── Ubicaciones (solo master/gerencia) ─── */}
       {['master', 'gerencia'].includes(user?.rol) && localesOrdenados.length > 0 && (
-        <Paper sx={{ borderRadius: 3, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+        <Paper sx={{ borderRadius: 3, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', mt: 3 }}>
           <Box sx={{ bgcolor: '#1565c0', px: 2, py: 1.5 }}>
             <Typography variant="subtitle2" sx={{ color: '#fff' }} fontWeight={500}>
               📍 Ubicaciones de revisiones del mes
