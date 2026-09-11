@@ -351,16 +351,16 @@ export default function Dashboard() {
             <Paper sx={{ borderRadius: 2, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', height: '100%' }}>
               <Box sx={{ bgcolor: isDark ? '#2a2a2a' : '#fafafa', borderBottom: `0.5px solid ${isDark ? '#333' : '#f0f0f0'}`, px: 2, py: 1.2 }}>
                 <Typography variant="subtitle2" fontWeight={500} color="text.primary">
-                  Supervisores
+                  Supervisores ({supervisores.length})
                 </Typography>
               </Box>
-              <Box>
-                {supervisores.slice(0, 5).map((sup, i) => {
+              <Box sx={{ maxHeight: 340, overflowY: 'auto' }}>
+                {supervisores.map((sup, i) => {
                   const pct = parseFloat(sup.promedio);
                   return (
                     <Box key={i} display="flex" alignItems="center" gap={1.5} sx={{
                       px: 2, py: 1.2,
-                      borderBottom: i < supervisores.slice(0, 5).length - 1 ? `0.5px solid ${isDark ? '#333' : '#f0f0f0'}` : 'none',
+                      borderBottom: i < supervisores.length - 1 ? `0.5px solid ${isDark ? '#333' : '#f0f0f0'}` : 'none',
                     }}>
                       <Box sx={{ width: 28, height: 28, borderRadius: '50%', bgcolor: getPColor(pct),
                         display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -390,7 +390,7 @@ export default function Dashboard() {
       {stats?.estadisticasPorLocal?.length > 0 && (
         <Paper sx={{ borderRadius: 2, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
           <Box sx={{ bgcolor: isDark ? '#333' : '#424242', px: 2, py: 1.5 }}>
-            <Typography variant="subtitle2" color="white" fontWeight={500}>
+            <Typography variant="subtitle2" sx={{ color: '#fff' }} fontWeight={500}>
               Rendimiento histórico por local (12 meses)
             </Typography>
           </Box>
@@ -460,7 +460,7 @@ export default function Dashboard() {
       {['master', 'gerencia'].includes(user?.rol) && localesOrdenados.length > 0 && (
         <Paper sx={{ borderRadius: 2, overflow: 'hidden' }}>
           <Box sx={{ bgcolor: '#1565c0', px: 2, py: 1.5 }}>
-            <Typography variant="subtitle2" color="white" fontWeight={500}>
+            <Typography variant="subtitle2" sx={{ color: '#fff' }} fontWeight={500}>
               📍 Ubicaciones de revisiones del mes
             </Typography>
           </Box>
