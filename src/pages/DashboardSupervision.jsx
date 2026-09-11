@@ -463,12 +463,12 @@ export default function DashboardSupervision() {
 
           {/* Supervisores + Evolución */}
           <Grid container spacing={2} sx={{ mb: 3, width: '100%' }}>
-            <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 3, borderRadius: 3, height: '100%' }}>
+            <Grid item xs={12} md={6} sx={{ minWidth: 0 }}>
+              <Paper sx={{ p: 3, borderRadius: 3, height: '100%', minWidth: 0 }}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary">SUPERVISORES</Typography>
                 <Box sx={{ mt: 2, maxHeight: 320, overflowY: 'auto' }}>
                   {resumen.supervisores.map(s => (
-                    <BarraCumplimiento key={s.supervisorId} label={s.nombre} pct={s.promedio} color={colorPorCumplimiento(s.promedio)} />
+                    <BarraCumplimiento key={s.supervisorId} label={`${s.nombre}${s.n ? ` · ${s.n} rev.` : ''}`} pct={s.promedio} color={colorPorCumplimiento(s.promedio)} />
                   ))}
                   {resumen.supervisores.length === 0 && (
                     <Typography color="text.secondary" textAlign="center" py={2} fontSize={13}>Sin datos para el período seleccionado.</Typography>
@@ -476,11 +476,11 @@ export default function DashboardSupervision() {
                 </Box>
               </Paper>
             </Grid>
-            <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 3, borderRadius: 3, height: '100%' }}>
+            <Grid item xs={12} md={6} sx={{ minWidth: 0 }}>
+              <Paper sx={{ p: 3, borderRadius: 3, height: '100%', minWidth: 0 }}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary">EVOLUCIÓN DEL CUMPLIMIENTO</Typography>
-                <Box sx={{ width: '100%', height: 340 }}>
-                  <ResponsiveContainer>
+                <Box sx={{ width: '100%', height: 340, minWidth: 0 }}>
+                  <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={resumen.evolucion}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="fecha" tick={{ fontSize: 11 }} tickFormatter={(f) => new Date(f).toLocaleDateString('es-CL', { weekday: 'short' })} />

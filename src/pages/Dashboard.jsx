@@ -118,7 +118,7 @@ export default function Dashboard() {
   }
 
   return (
-    <Box>
+    <Box sx={{ width: '100%', maxWidth: '100%' }}>
       {/* ─── Título ──────────────────────────────────────── */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
         <Box>
@@ -179,7 +179,7 @@ export default function Dashboard() {
       )}
 
       {/* ─── KPI Cards ───────────────────────────────────── */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
+      <Grid container spacing={2} sx={{ mb: 3, width: '100%' }}>
         <Grid item xs={12} sm={6} md={3}>
           <KPICard title="TOTAL REVISIONES" value={totalRevisiones}
             subtitle="Este mes" color="#d32f2f" icon={<AssignmentIcon />} />
@@ -292,7 +292,7 @@ export default function Dashboard() {
       )}
 
       {/* ─── Fila inferior: Sin revisión + Supervisores (2 columnas más anchas) ─── */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
+      <Grid container spacing={2} sx={{ mb: 3, width: '100%' }}>
         {/* Locales sin revisión */}
         {localesSinRevision.length > 0 && (
           <Grid item xs={12} md={6}>
@@ -302,10 +302,10 @@ export default function Dashboard() {
                   Sin revisión este mes ({localesSinRevision.length})
                 </Typography>
               </Box>
-              <Box sx={{ p: 1, maxHeight: 400, overflowY: 'auto' }}>
+              <Box sx={{ p: 1.5, maxHeight: 400, overflowY: 'auto', display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1 }}>
                 {localesSinRevision.map((l, i) => (
                   <Box key={l._id} display="flex" alignItems="center" gap={1} sx={{
-                    px: 1.5, py: 1, mb: 0.5, borderRadius: 1.5,
+                    px: 1.5, py: 1, borderRadius: 1.5,
                     bgcolor: isDark ? '#3d2f10' : '#fffbeb',
                   }}>
                     <CancelIcon sx={{ fontSize: 14, color: '#f59e0b' }} />
@@ -329,33 +329,36 @@ export default function Dashboard() {
                   Ranking de supervisores ({supervisores.length})
                 </Typography>
               </Box>
-              <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
+              <Box sx={{ maxHeight: 460, overflowY: 'auto' }}>
                 {supervisores.map((sup, i) => {
                   const pct = parseFloat(sup.promedio);
                   const medalla = ['🥇', '🥈', '🥉'][i];
                   return (
-                    <Box key={i} display="flex" alignItems="center" gap={1.5} sx={{
-                      px: 2, py: 1.2,
+                    <Box key={i} display="flex" alignItems="center" gap={2} sx={{
+                      px: 2, py: 1.8,
                       borderBottom: i < supervisores.length - 1 ? `0.5px solid ${isDark ? '#333' : '#f0f0f0'}` : 'none',
                     }}>
-                      <Box sx={{ width: 22, textAlign: 'center', fontSize: 16 }}>
-                        {medalla || <Typography variant="caption" color="text.secondary">{i + 1}</Typography>}
+                      <Box sx={{ width: 26, textAlign: 'center', fontSize: 20 }}>
+                        {medalla || <Typography variant="body2" color="text.secondary" fontWeight={600}>{i + 1}</Typography>}
                       </Box>
-                      <Box sx={{ width: 30, height: 30, borderRadius: '50%', bgcolor: getPColor(pct),
+                      <Box sx={{ width: 42, height: 42, borderRadius: '50%', bgcolor: getPColor(pct),
                         display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <Typography sx={{ color: '#fff', fontSize: 12, fontWeight: 600 }}>
+                        <Typography sx={{ color: '#fff', fontSize: 16, fontWeight: 600 }}>
                           {sup.supervisorNombre?.[0]?.toUpperCase()}
                         </Typography>
                       </Box>
                       <Box sx={{ flex: 1 }}>
-                        <Typography variant="body2" fontWeight={500} noWrap>{sup.supervisorNombre}</Typography>
+                        <Typography variant="body1" fontWeight={600} noWrap>{sup.supervisorNombre}</Typography>
                         <LinearProgress variant="determinate" value={pct}
-                          sx={{ height: 5, borderRadius: 2, mt: 0.3, bgcolor: `${getPColor(pct)}22`,
+                          sx={{ height: 7, borderRadius: 3, mt: 0.5, bgcolor: `${getPColor(pct)}22`,
                             '& .MuiLinearProgress-bar': { bgcolor: getPColor(pct) } }} />
                       </Box>
-                      <Typography variant="body2" fontWeight={600} sx={{ color: getPColor(pct) }}>
-                        {pct.toFixed(1)}%
-                      </Typography>
+                      <Box sx={{ textAlign: 'right', minWidth: 70 }}>
+                        <Typography variant="h6" fontWeight={700} sx={{ color: getPColor(pct), lineHeight: 1.1 }}>
+                          {pct.toFixed(1)}%
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">{sup.total ? `${sup.total} rev.` : ''}</Typography>
+                      </Box>
                     </Box>
                   );
                 })}
