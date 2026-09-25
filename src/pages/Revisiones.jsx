@@ -14,6 +14,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   Cancel as CancelIcon,
   Image as ImageIcon,
+  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -196,6 +197,7 @@ export default function Revisiones() {
   const [supervisores, setSupervisores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pdfLoading, setPdfLoading] = useState(null);
+  const [finalizandoId, setFinalizandoId] = useState(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [filters, setFilters] = useState({ localId: '', supervisorId: '', fechaInicio: null, fechaFin: null });
@@ -264,6 +266,19 @@ export default function Revisiones() {
       loadRevisiones();
       setDeleteDialog({ open: false, id: null });
     } catch (error) { console.error(error); }
+  };
+
+  const handleFinalizarBorrador = async (id) => {
+    setFinalizandoId(id);
+    try {
+      await api.put(`/revisiones/${id}/marcar-finalizada`);
+      loadRevisiones();
+    } catch (error) {
+      console.error(error);
+      alert(error.response?.data?.error || 'No se pudo pasar la revisión a Finalizada');
+    } finally {
+      setFinalizandoId(null);
+    }
   };
 
   const getNombreLocal = (revision) => {
@@ -380,6 +395,15 @@ export default function Revisiones() {
                           {pdfLoading === revision._id ? <CircularProgress size={16} /> : <PdfIcon fontSize="small" />}
                         </IconButton>
                       </Tooltip>
+                      {revision.esBorrador && !['administrador', 'supervisor'].includes(user?.rol) && (
+                        <Tooltip title="Pasar a Finalizada">
+                          <IconButton size="small" color="success"
+                            onClick={() => handleFinalizarBorrador(revision._id)}
+                            disabled={finalizandoId === revision._id}>
+                            {finalizandoId === revision._id ? <CircularProgress size={16} /> : <CheckCircleIcon fontSize="small" />}
+                          </IconButton>
+                        </Tooltip>
+                      )}
                       {user?.rol === 'master' && (
                         <Tooltip title="Eliminar">
                           <IconButton size="small" color="error"
