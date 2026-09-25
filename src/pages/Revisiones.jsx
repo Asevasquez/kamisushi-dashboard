@@ -215,11 +215,15 @@ export default function Revisiones() {
 
   const loadData = async () => {
     try {
-      const promises = [api.get('/locales/activos')];
-      if (['master', 'gerencia'].includes(user?.rol)) promises.push(api.get('/supervisores'));
-      const results = await Promise.all(promises);
-      setLocales(results[0].data);
-      if (results[1]) setSupervisores(results[1].data);
+      const [localesRes, supervisoresRes] = await Promise.all([
+        api.get('/locales/activos'),
+        // Separado con su propio catch: si /supervisores sigue restringido a
+        // master/gerencia en el backend, esto no debe romper la carga de
+        // locales para las demás personas.
+        api.get('/supervisores').catch(() => ({ data: [] })),
+      ]);
+      setLocales(localesRes.data);
+      setSupervisores(supervisoresRes.data);
     } catch (error) { console.error(error); }
   };
 
@@ -313,15 +317,13 @@ export default function Revisiones() {
                 {locales.map(l => <MenuItem key={l._id} value={l._id}>{l.nombre}</MenuItem>)}
               </TextField>
             </Grid>
-            {['master', 'gerencia'].includes(user?.rol) && (
-              <Grid item xs={12} sm={6} md={3}>
-                <TextField select fullWidth label="Supervisor" size="small" value={filters.supervisorId}
-                  onChange={(e) => setFilters({ ...filters, supervisorId: e.target.value })}>
-                  <MenuItem value="">Todos los supervisores</MenuItem>
-                  {supervisores.map(s => <MenuItem key={s._id} value={s._id}>{s.nombre}</MenuItem>)}
-                </TextField>
-              </Grid>
-            )}
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField select fullWidth label="Supervisor" size="small" value={filters.supervisorId}
+                onChange={(e) => setFilters({ ...filters, supervisorId: e.target.value })}>
+                <MenuItem value="">Todos los supervisores</MenuItem>
+                {supervisores.map(s => <MenuItem key={s._id} value={s._id}>{s.nombre}</MenuItem>)}
+              </TextField>
+            </Grid>
             <Grid item xs={12} sm={6} md={2}>
               <DatePicker label="Desde" value={filters.fechaInicio}
                 onChange={(date) => setFilters({ ...filters, fechaInicio: date })}
