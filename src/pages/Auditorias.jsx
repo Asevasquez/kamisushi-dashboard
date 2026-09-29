@@ -9,6 +9,28 @@ import { Close as CloseIcon, PictureAsPdf as PdfIcon, Delete as DeleteIcon } fro
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
+const API_BASE = 'https://supervision-back.vertigs.net';
+
+const getImageUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith('data:image')) return url; // base64 directo
+  if (url.startsWith('http')) return url;
+  if (url.startsWith('/uploads')) return `${API_BASE}${url}`;
+  return null;
+};
+
+// Mismo texto que se muestra en la app (AuditoriaScreen.js) — así el
+// dashboard no muestra solo el código (SC-A1, COC-A2, etc.) sino la
+// pregunta completa, entendible sin tener que memorizar los códigos.
+const TEXTO_PREGUNTA = {
+  'SC-A1': '¿Supervisa que los pedidos salgan completos, correctamente agendados y validados antes de ser entregados al cliente?',
+  'SC-A2': '¿Gestiona y da solución oportuna a los reclamos, evitando clientes sin respuesta o casos sin seguimiento?',
+  'SC-A3': '¿Aplican los protocolos de atención enfocados a subir el ticket promedio y mejorar la experiencia de nuestros clientes?',
+  'COC-A1': '¿Pueden identificar una preparación que no cumple el estándar de calidad?',
+  'COC-A2': '¿Cumple con la preparación del día (mise en place)?',
+  'COC-A3': '¿Supervisan correctamente la conservación, rotulación, temperaturas, descongelación y manipulación de los alimentos?',
+};
+
 const CATEGORIA_COLOR = {
   EXCELENTE: '#1565c0', 'MUY BUENO': '#2e7d32', BUENO: '#43a047',
   REGULAR: '#f57c00', MALO: '#ef6c00', 'PÉSIMO': '#c62828',
@@ -214,9 +236,9 @@ export default function Auditorias() {
                 SERVICIO AL CLIENTE Y CAJA — {detalle.puntajeServicioCliente}/30
               </Typography>
               {(detalle.servicioCliente?.preguntas || []).map((p, i) => (
-                <Box key={p.id} display="flex" justifyContent="space-between" py={0.5}>
-                  <Typography variant="body2">{p.id}</Typography>
-                  <Typography variant="body2" fontWeight={700}>{p.puntaje}/10</Typography>
+                <Box key={p.id} display="flex" justifyContent="space-between" alignItems="flex-start" py={0.75} gap={2}>
+                  <Typography variant="body2" sx={{ flex: 1 }}>{TEXTO_PREGUNTA[p.id] || p.id}</Typography>
+                  <Typography variant="body2" fontWeight={700} sx={{ whiteSpace: 'nowrap' }}>{p.puntaje}/10</Typography>
                 </Box>
               ))}
               {detalle.servicioCliente?.observacionSAC && (
@@ -232,9 +254,9 @@ export default function Auditorias() {
                 COCINA — {detalle.puntajeCocina}/30
               </Typography>
               {(detalle.cocina?.preguntas || []).map((p) => (
-                <Box key={p.id} display="flex" justifyContent="space-between" py={0.5}>
-                  <Typography variant="body2">{p.id}</Typography>
-                  <Typography variant="body2" fontWeight={700}>{p.puntaje}/10</Typography>
+                <Box key={p.id} display="flex" justifyContent="space-between" alignItems="flex-start" py={0.75} gap={2}>
+                  <Typography variant="body2" sx={{ flex: 1 }}>{TEXTO_PREGUNTA[p.id] || p.id}</Typography>
+                  <Typography variant="body2" fontWeight={700} sx={{ whiteSpace: 'nowrap' }}>{p.puntaje}/10</Typography>
                 </Box>
               ))}
               {detalle.cocina?.observacionCocina && (
@@ -268,7 +290,7 @@ export default function Auditorias() {
                   {r.comentario && <Typography variant="body2" sx={{ mt: 0.5 }}>{r.comentario}</Typography>}
                   {r.foto && (
                     <Box sx={{ mt: 1 }}>
-                      <img src={r.foto} alt="Evidencia reclamo" style={{ maxWidth: 220, maxHeight: 220, borderRadius: 8, border: '1px solid #eee' }} />
+                      <img src={getImageUrl(r.foto)} alt="Evidencia reclamo" style={{ maxWidth: 220, maxHeight: 220, borderRadius: 8, border: '1px solid #eee' }} />
                     </Box>
                   )}
                 </Paper>
