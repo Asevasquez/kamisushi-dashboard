@@ -20,6 +20,7 @@ const ROL_COLORS = {
   gerencia: 'secondary',
   administrador: 'warning',
   supervisor: 'primary',
+  auditor: 'info',
 };
 
 export default function Usuarios() {
@@ -130,7 +131,7 @@ export default function Usuarios() {
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4" fontWeight={600}>Gestión de Usuarios</Typography>
-        <Button variant="contained" startIcon={<AddIcon />} sx={{ bgcolor: '#d32f2f' }}
+        <Button variant="contained" startIcon={<AddIcon />} sx={{ bgcolor: '#f20000' }}
           onClick={() => handleAbrir()}>
           Nuevo Usuario
         </Button>
@@ -141,7 +142,7 @@ export default function Usuarios() {
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
-            <TableRow sx={{ backgroundColor: '#d32f2f' }}>
+            <TableRow sx={{ backgroundColor: '#f20000' }}>
               <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Nombre</TableCell>
               <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Email</TableCell>
               <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Rol</TableCell>
@@ -186,7 +187,7 @@ export default function Usuarios() {
 
       {/* Dialog crear/editar */}
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{editingId ? 'Editar Usuario' : 'Crear Nuevo Usuario'}</DialogTitle>
+        <DialogTitle sx={{ color: 'text.primary' }}>{editingId ? 'Editar Usuario' : 'Crear Nuevo Usuario'}</DialogTitle>
         <DialogContent>
           <TextField fullWidth label="Nombre completo" margin="normal" value={formData.nombre}
             onChange={(e) => setFormData({ ...formData, nombre: e.target.value })} />
@@ -202,6 +203,7 @@ export default function Usuarios() {
             <MenuItem value="supervisor">Supervisor</MenuItem>
             <MenuItem value="administrador">Administrador</MenuItem>
             <MenuItem value="gerencia">Gerencia</MenuItem>
+            <MenuItem value="auditor">Auditor</MenuItem>
             <MenuItem value="master">Master</MenuItem>
           </TextField>
           {formData.rol === 'supervisor' && (
@@ -227,7 +229,7 @@ export default function Usuarios() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialogOpen(false)}>Cancelar</Button>
-          <Button onClick={handleGuardar} variant="contained" sx={{ bgcolor: '#d32f2f' }}
+          <Button onClick={handleGuardar} variant="contained" sx={{ bgcolor: '#f20000' }}
             disabled={guardando || !formData.nombre || !formData.email}>
             {guardando ? <CircularProgress size={20} color="inherit" /> : editingId ? 'Actualizar' : 'Crear'}
           </Button>
@@ -236,7 +238,7 @@ export default function Usuarios() {
 
       {/* Dialog desactivar */}
       <Dialog open={deleteDialog.open} onClose={() => setDeleteDialog({ open: false, id: null, nombre: '' })}>
-        <DialogTitle>Confirmar Desactivación</DialogTitle>
+        <DialogTitle sx={{ color: 'text.primary' }}>Confirmar Desactivación</DialogTitle>
         <DialogContent>
           <Typography>¿Desactivar al usuario <strong>{deleteDialog.nombre}</strong>?</Typography>
           <Typography variant="caption" color="textSecondary" display="block" mt={1}>
