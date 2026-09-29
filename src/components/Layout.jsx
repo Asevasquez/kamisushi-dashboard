@@ -15,6 +15,7 @@ import {
   DarkMode as DarkModeIcon,
   LightMode as LightModeIcon,
   BarChart as BarChartIcon,
+  FactCheck as FactCheckIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -24,8 +25,9 @@ const DRAWER_WIDTH = 240;
 
 const menuItems = [
   { path: '/dashboard', label: 'Dashboard', icon: <DashboardIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor'] },
-  { path: '/revisiones', label: 'Revisiones', icon: <AssessmentIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor'] },
+  { path: '/revisiones', label: 'Revisiones', icon: <AssessmentIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'auditor'] },
   { path: '/dashboard-supervision', label: 'Dashboard Supervisión', icon: <BarChartIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor'] },
+  { path: '/auditorias', label: 'Auditoría', icon: <FactCheckIcon />, roles: ['master', 'gerencia', 'auditor'] },
   { path: '/usuarios', label: 'Usuarios', icon: <PeopleIcon />, roles: ['master'] },
   { path: '/asignar-locales', label: 'Asignar Locales', icon: <AssignmentIcon />, roles: ['master'] },
   { path: '/locales', label: 'Locales', icon: <StoreIcon />, roles: ['master'] },
@@ -37,6 +39,7 @@ const ROL_COLOR = {
   gerencia: '#7c3aed',
   administrador: '#f59e0b',
   supervisor: '#2196f3',
+  auditor: '#009688',
 };
 
 export default function Layout() {
