@@ -24,9 +24,9 @@ import { useColorMode } from '../App';
 const DRAWER_WIDTH = 240;
 
 const menuItems = [
-  { path: '/dashboard', label: 'Dashboard', icon: <DashboardIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor'] },
-  { path: '/revisiones', label: 'Revisiones', icon: <AssessmentIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'auditor'] },
-  { path: '/dashboard-supervision', label: 'Dashboard Supervisión', icon: <BarChartIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor'] },
+  { path: '/dashboard', label: 'Dashboard', icon: <DashboardIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno'] },
+  { path: '/revisiones', label: 'Revisiones', icon: <AssessmentIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'auditor', 'supervisorinterno'] },
+  { path: '/dashboard-supervision', label: 'Dashboard Supervisión', icon: <BarChartIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno'] },
   { path: '/auditorias', label: 'Auditoría', icon: <FactCheckIcon />, roles: ['master', 'gerencia', 'auditor'] },
   { path: '/usuarios', label: 'Usuarios', icon: <PeopleIcon />, roles: ['master'] },
   { path: '/asignar-locales', label: 'Asignar Locales', icon: <AssignmentIcon />, roles: ['master'] },
@@ -40,6 +40,7 @@ const ROL_COLOR = {
   administrador: '#f59e0b',
   supervisor: '#2196f3',
   auditor: '#009688',
+  supervisorinterno: '#0288d1',
 };
 
 export default function Layout() {

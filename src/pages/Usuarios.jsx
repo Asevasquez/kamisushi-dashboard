@@ -21,6 +21,7 @@ const ROL_COLORS = {
   administrador: 'warning',
   supervisor: 'primary',
   auditor: 'info',
+  supervisorinterno: 'success',
 };
 
 export default function Usuarios() {
@@ -201,6 +202,7 @@ export default function Usuarios() {
           <TextField select fullWidth label="Rol" margin="normal" value={formData.rol}
             onChange={(e) => setFormData({ ...formData, rol: e.target.value, supervisorId: '' })}>
             <MenuItem value="supervisor">Supervisor</MenuItem>
+            <MenuItem value="supervisorinterno">Supervisor Interno</MenuItem>
             <MenuItem value="administrador">Administrador</MenuItem>
             <MenuItem value="gerencia">Gerencia</MenuItem>
             <MenuItem value="auditor">Auditor</MenuItem>

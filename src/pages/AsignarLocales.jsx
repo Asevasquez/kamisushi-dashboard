@@ -37,9 +37,9 @@ export default function AsignarLocales() {
         api.get('/usuarios'),
         api.get('/locales'),
       ]);
-      // Mostrar supervisores y administradores (los que pueden tener locales asignados)
+      // Mostrar supervisores, administradores y supervisores internos (los que pueden tener locales asignados)
       const filtrados = usuariosRes.data.filter(u =>
-        ['supervisor', 'administrador'].includes(u.rol) && u.activo
+        ['supervisor', 'administrador', 'supervisorinterno'].includes(u.rol) && u.activo
       );
       setUsuarios(filtrados);
       setLocales(localesRes.data);
