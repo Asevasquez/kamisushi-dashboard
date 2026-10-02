@@ -50,6 +50,7 @@ const ACCION_HISTORIAL = {
   evidencia_enviada: 'Evidencia enviada',
   correccion_solicitada: 'Corrección solicitada',
   aprobado: 'Aprobado y cerrado',
+  accion_mentor_realizada: 'Tarea del mentor realizada',
 };
 
 const leerComoDataUrl = (file) => new Promise((resolve, reject) => {
@@ -162,6 +163,13 @@ export default function CompromisoMentoriaDialog({ open, mentoriaId, compromiso,
 
         <Campo label="Deficiencia detectada">{compromiso.deficiencia}</Campo>
         <Campo label="Acción del mentor">{compromiso.accionMentor}</Campo>
+        <Box sx={{ mt: -0.5, mb: 1.5 }}>
+          <Chip size="small"
+            label={compromiso.accionMentorEstado === 'realizada'
+              ? `Tarea del mentor realizada · ${fmtFecha(compromiso.accionMentorRealizadaEn)}`
+              : 'Tarea del mentor pendiente'}
+            sx={{ bgcolor: compromiso.accionMentorEstado === 'realizada' ? '#2e7d32' : '#757575', color: '#fff', fontWeight: 700 }} />
+        </Box>
         <Campo label="Evidencia solicitada">{compromiso.evidenciaRequerida}</Campo>
 
         <Divider sx={{ my: 2 }} />
