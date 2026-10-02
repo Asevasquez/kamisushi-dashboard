@@ -123,10 +123,17 @@ export default function Mentorias() {
     }
   };
 
+  // Solo gerencia y master (el backend también lo valida)
   const eliminar = async (m) => {
-    if (!window.confirm(`¿Eliminar el borrador de ${m.localNombre}?`)) return;
+    const comp = m.compromisos?.length || 0;
+    const mensaje = m.esBorrador
+      ? `¿Eliminar el borrador de ${m.localNombre} (${fmtFecha(m.fechaMentoria)})?`
+      : `¿Eliminar la mentoría ${m.numeroInforme || ''} de ${m.localNombre} (${fmtFecha(m.fechaMentoria)})?\n\n`
+        + `Se borrarán también sus ${comp} compromiso(s), evidencias e historial. Esta acción no se puede deshacer.`;
+    if (!window.confirm(mensaje)) return;
     try {
       await api.delete(`/mentorias/${m._id}`);
+      if (detalle?._id === m._id) setDetalle(null);
       cargar();
     } catch (e) {
       alert(e.response?.data?.error || 'No se pudo eliminar');
@@ -310,8 +317,8 @@ export default function Mentorias() {
                             </span>
                           </Tooltip>
                         )}
-                        {m.esBorrador && user?.rol === 'master' && (
-                          <Tooltip title="Eliminar borrador">
+                        {esGlobal && (
+                          <Tooltip title="Eliminar mentoría">
                             <IconButton size="small" color="error" onClick={() => eliminar(m)}><DeleteIcon fontSize="small" /></IconButton>
                           </Tooltip>
                         )}
@@ -447,6 +454,11 @@ export default function Mentorias() {
               )}
             </DialogContent>
             <DialogActions>
+              {esGlobal && (
+                <Button color="error" startIcon={<DeleteIcon />} onClick={() => eliminar(detalle)} sx={{ mr: 'auto' }}>
+                  Eliminar
+                </Button>
+              )}
               {!detalle.esBorrador && (
                 <Button onClick={() => pdf(detalle)} disabled={pdfLoading} startIcon={pdfLoading ? <CircularProgress size={16} /> : <PdfIcon />}>
                   Descargar PDF
