@@ -17,6 +17,8 @@ const ROL_COLORS = {
   supervisor: '#2196f3',
   administrador: '#f59e0b',
   gerencia: '#7c3aed',
+  supervisorinterno: '#0288d1',
+  mentor: '#6d4c41',
 };
 
 export default function AsignarLocales() {
@@ -37,9 +39,9 @@ export default function AsignarLocales() {
         api.get('/usuarios'),
         api.get('/locales'),
       ]);
-      // Mostrar supervisores, administradores y supervisores internos (los que pueden tener locales asignados)
+      // Roles que pueden tener locales asignados (el mentor solo ve y evalúa los suyos en Mentorías)
       const filtrados = usuariosRes.data.filter(u =>
-        ['supervisor', 'administrador', 'supervisorinterno'].includes(u.rol) && u.activo
+        ['supervisor', 'administrador', 'supervisorinterno', 'mentor'].includes(u.rol) && u.activo
       );
       setUsuarios(filtrados);
       setLocales(localesRes.data);
@@ -114,7 +116,7 @@ export default function AsignarLocales() {
     <Box>
       <Typography variant="h4" fontWeight={600} mb={1}>Asignar Locales</Typography>
       <Typography variant="body2" color="textSecondary" mb={3}>
-        Asigna uno o más locales a supervisores y administradores para que puedan gestionar sus revisiones.
+        Asigna uno o más locales a supervisores, administradores y mentores para que puedan gestionar sus revisiones y mentorías.
       </Typography>
 
       {mensaje.text && <Alert severity={mensaje.type} sx={{ mb: 2 }}>{mensaje.text}</Alert>}
@@ -163,7 +165,7 @@ export default function AsignarLocales() {
             {usuarios.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={4} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                  No hay supervisores ni administradores activos
+                  No hay supervisores, administradores ni mentores activos
                 </TableCell>
               </TableRow>
             ) : (
@@ -253,10 +255,10 @@ export default function AsignarLocales() {
                     onClick={() => toggleLocal(local._id)}
                     sx={{
                       p: 1.5, cursor: 'pointer',
-                      borderColor: asignado ? '#f20000' : '#e0e0e0',
-                      bgcolor: asignado ? '#fff5f5' : 'white',
+                      borderColor: asignado ? '#f20000' : 'divider',
+                      bgcolor: asignado ? 'rgba(242,0,0,0.08)' : 'background.paper',
                       transition: 'all 0.15s',
-                      '&:hover': { borderColor: '#f20000', bgcolor: '#fff5f5' },
+                      '&:hover': { borderColor: '#f20000', bgcolor: 'rgba(242,0,0,0.08)' },
                     }}
                   >
                     <Box display="flex" alignItems="center" gap={1}>
