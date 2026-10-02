@@ -13,6 +13,8 @@ import Revisiones from './pages/Revisiones';
 import AsignarLocales from './pages/AsignarLocales';
 import DashboardSupervision from './pages/DashboardSupervision';
 import Auditorias from './pages/Auditorias';
+import Mentorias from './pages/Mentorias';
+import CompromisosMentoria from './pages/CompromisosMentoria';
 import Layout from './components/Layout';
 
 // Contexto global del modo oscuro
@@ -23,8 +25,19 @@ function PrivateRoute({ children, allowedRoles }) {
   const { user, loading } = useAuth();
   if (loading) return <div>Cargando...</div>;
   if (!user) return <Navigate to="/login" />;
-  if (allowedRoles && !allowedRoles.includes(user.rol)) return <Navigate to="/dashboard" />;
+  if (allowedRoles && !allowedRoles.includes(user.rol)) return <Navigate to={rutaInicio(user.rol)} />;
   return children;
+}
+
+// Página de inicio según el rol (el mentor solo trabaja en Mentorías)
+function rutaInicio(rol) {
+  if (rol === 'mentor') return '/mentorias';
+  return '/dashboard';
+}
+
+function Inicio() {
+  const { user } = useAuth();
+  return <Navigate to={rutaInicio(user?.rol)} />;
 }
 
 function AppRoutes() {
@@ -32,10 +45,12 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
-        <Route index element={<Navigate to="/dashboard" />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="revisiones" element={<Revisiones />} />
+        <Route index element={<Inicio />} />
+        <Route path="dashboard" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'auditor']}><Dashboard /></PrivateRoute>} />
+        <Route path="revisiones" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'administrador', 'supervisor', 'auditor', 'supervisorinterno']}><Revisiones /></PrivateRoute>} />
         <Route path="dashboard-supervision" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno']}><DashboardSupervision /></PrivateRoute>} />
+        <Route path="mentorias" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'mentor']}><Mentorias /></PrivateRoute>} />
+        <Route path="compromisos-mentoria" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'mentor', 'administrador']}><CompromisosMentoria /></PrivateRoute>} />
         <Route path="auditorias" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'auditor']}><Auditorias /></PrivateRoute>} />
         <Route path="usuarios" element={<PrivateRoute allowedRoles={['master']}><Usuarios /></PrivateRoute>} />
         <Route path="locales" element={<PrivateRoute allowedRoles={['master']}><Locales /></PrivateRoute>} />

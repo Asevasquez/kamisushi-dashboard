@@ -22,6 +22,7 @@ const ROL_COLORS = {
   supervisor: 'primary',
   auditor: 'info',
   supervisorinterno: 'success',
+  mentor: 'default',
 };
 
 export default function Usuarios() {
@@ -206,6 +207,7 @@ export default function Usuarios() {
             <MenuItem value="administrador">Administrador</MenuItem>
             <MenuItem value="gerencia">Gerencia</MenuItem>
             <MenuItem value="auditor">Auditor</MenuItem>
+            <MenuItem value="mentor">Mentor</MenuItem>
             <MenuItem value="master">Master</MenuItem>
           </TextField>
           {formData.rol === 'supervisor' && (

@@ -16,6 +16,8 @@ import {
   LightMode as LightModeIcon,
   BarChart as BarChartIcon,
   FactCheck as FactCheckIcon,
+  School as SchoolIcon,
+  TaskAlt as TaskAltIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -28,6 +30,8 @@ const menuItems = [
   { path: '/revisiones', label: 'Revisiones', icon: <AssessmentIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'auditor', 'supervisorinterno'] },
   { path: '/dashboard-supervision', label: 'Dashboard Supervisión', icon: <BarChartIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno'] },
   { path: '/auditorias', label: 'Auditoría', icon: <FactCheckIcon />, roles: ['master', 'gerencia', 'auditor'] },
+  { path: '/mentorias', label: 'Mentorías', icon: <SchoolIcon />, roles: ['master', 'gerencia', 'mentor'] },
+  { path: '/compromisos-mentoria', label: 'Compromisos Mentoría', icon: <TaskAltIcon />, roles: ['master', 'gerencia', 'mentor', 'administrador'] },
   { path: '/usuarios', label: 'Usuarios', icon: <PeopleIcon />, roles: ['master'] },
   { path: '/asignar-locales', label: 'Asignar Locales', icon: <AssignmentIcon />, roles: ['master'] },
   { path: '/locales', label: 'Locales', icon: <StoreIcon />, roles: ['master'] },
@@ -41,6 +45,7 @@ const ROL_COLOR = {
   supervisor: '#2196f3',
   auditor: '#009688',
   supervisorinterno: '#0288d1',
+  mentor: '#6d4c41',
 };
 
 export default function Layout() {
