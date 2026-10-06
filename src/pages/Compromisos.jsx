@@ -9,7 +9,7 @@ import {
 import { useTheme, alpha, lighten } from '@mui/material/styles';
 import {
   Visibility as ViewIcon, Close as CloseIcon, Download as DownloadIcon,
-  CheckCircleOutline as ClosedIcon, Schedule as ReviewIcon, WarningAmber as OverdueIcon,
+  CheckCircleOutlined as ClosedIcon, Schedule as ReviewIcon, WarningAmber as OverdueIcon,
   RadioButtonUnchecked as OpenIcon, Send as SendIcon, Image as ImageIcon, Check as CheckIcon,
 } from '@mui/icons-material';
 import ExcelJS from 'exceljs';
