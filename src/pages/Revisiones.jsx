@@ -21,7 +21,8 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { es } from 'date-fns/locale';
 import api from '../services/api';
-import { useTheme } from '@mui/material/styles';
+import { useTheme, alpha, lighten } from '@mui/material/styles';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const API_BASE = 'https://supervision-back.vertigs.net';
@@ -191,6 +192,96 @@ function SeccionDetalle({ titulo, respuestas, color, isDark = false }) {
   );
 }
 
+// ─── Compromisos de la revisión (pestaña del detalle) ────────────────────────
+const SECCIONES_COMP = [
+  { key: 'servicioCliente', label: 'Servicio al Cliente' },
+  { key: 'cocina', label: 'Cocina' },
+];
+const ESTADO_COMP = {
+  abierto: { label: 'Abierto', color: '#0a4a8a' },
+  en_revision: { label: 'En revisión', color: '#8a5200' },
+  vencido: { label: 'Vencido', color: '#a40000' },
+  cerrado: { label: 'Cerrado', color: '#1b6b28' },
+};
+const fmtFechaComp = (str) => {
+  if (!str) return '—';
+  const [y, m, d] = String(str).slice(0, 10).split('-');
+  return `${d}-${m}-${y}`;
+};
+
+function CompromisosDeRevision({ compromisos, esBorrador, puedeVerSeguimiento, onVer }) {
+  const theme = useTheme();
+  const dark = theme.palette.mode === 'dark';
+  const tono = (c) => (dark ? lighten(c, 0.55) : c);
+  const fondo = (c) => alpha(c, dark ? 0.28 : 0.13);
+  const lista = compromisos || [];
+
+  if (lista.length === 0) {
+    return (
+      <Box textAlign="center" py={4}>
+        <Typography color="textSecondary">Esta revisión no tiene compromisos.</Typography>
+      </Box>
+    );
+  }
+
+  const conteo = {};
+  lista.forEach((c) => { conteo[c.estadoVisible] = (conteo[c.estadoVisible] || 0) + 1; });
+
+  return (
+    <Box>
+      <Box display="flex" flexWrap="wrap" alignItems="center" gap={1} mb={2}>
+        {Object.keys(ESTADO_COMP).filter((k) => conteo[k]).map((k) => (
+          <Chip key={k} size="small" label={`${conteo[k]} ${ESTADO_COMP[k].label.toLowerCase()}${conteo[k] > 1 && k !== 'en_revision' ? 's' : ''}`}
+            sx={{ bgcolor: fondo(ESTADO_COMP[k].color), color: tono(ESTADO_COMP[k].color), fontWeight: 700 }} />
+        ))}
+      </Box>
+      {esBorrador && (
+        <Paper variant="outlined" sx={{ p: 1.5, mb: 2 }}>
+          <Typography variant="body2" color="textSecondary">
+            Revisión en borrador: los compromisos recién se activan y empiezan su seguimiento cuando se finaliza.
+          </Typography>
+        </Paper>
+      )}
+      {SECCIONES_COMP.map((sec) => {
+        const items = lista.filter((c) => c.seccion === sec.key);
+        if (items.length === 0) return null;
+        return (
+          <Box key={sec.key} mb={2.5}>
+            <Typography sx={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.5, color: 'text.secondary', mb: 1 }}>
+              {sec.label.toUpperCase()} · {items.length}/3
+            </Typography>
+            <Box display="flex" flexDirection="column" gap={1}>
+              {items.map((c, i) => {
+                const e = ESTADO_COMP[c.estadoVisible] || ESTADO_COMP.abierto;
+                return (
+                  <Paper key={c._id || c.clientId} variant="outlined" sx={{ p: 1.5, display: 'flex', alignItems: 'center', gap: 1.75, flexWrap: 'wrap' }}>
+                    <Box sx={{ width: 28, height: 28, borderRadius: '50%', bgcolor: 'text.primary', color: 'background.paper', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {i + 1}
+                    </Box>
+                    <Box sx={{ flex: '1 1 260px', minWidth: 0 }}>
+                      <Typography sx={{ fontSize: 14, lineHeight: 1.4 }}>{c.texto}</Typography>
+                      <Typography variant="caption" color="textSecondary">
+                        Responsable: {c.responsableNombre || '—'} · Vence {fmtFechaComp(c.fechaLimite)}
+                      </Typography>
+                    </Box>
+                    <Chip size="small" label={e.label} sx={{ bgcolor: fondo(e.color), color: tono(e.color), fontWeight: 700 }} />
+                    {puedeVerSeguimiento && !esBorrador && (
+                      <Button size="small" sx={{ fontWeight: 700 }} onClick={() => onVer(c._id)}>Ver seguimiento</Button>
+                    )}
+                  </Paper>
+                );
+              })}
+            </Box>
+          </Box>
+        );
+      })}
+      <Typography variant="caption" color="textSecondary">
+        Las evidencias y el historial completo están en la página Compromisos Revisión.
+      </Typography>
+    </Box>
+  );
+}
+
 export default function Revisiones() {
   const [revisiones, setRevisiones] = useState([]);
   const [locales, setLocales] = useState([]);
@@ -206,6 +297,7 @@ export default function Revisiones() {
   const [detailDialog, setDetailDialog] = useState({ open: false, revision: null });
   const [tabDetalle, setTabDetalle] = useState(0);
   const { user } = useAuth();
+  const navigate = useNavigate();
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
 
@@ -446,6 +538,7 @@ export default function Revisiones() {
           <Tab label="Secciones" />
           <Tab label={`Fotos (${todasLasFotos.length})`} />
           <Tab label={`Reclamos (${rev?.servicioCliente?.reclamos?.length || 0})`} />
+          <Tab label={`Compromisos (${rev?.compromisos?.length || 0})`} />
           {['master', 'gerencia'].includes(user?.rol) && (
             <Tab label="Ubicación" />
           )}
@@ -610,8 +703,18 @@ export default function Revisiones() {
                 </Box>
               )}
 
-              {/* TAB 4: Ubicación — solo master/gerencia */}
-              {tabDetalle === 4 && ['master', 'gerencia'].includes(user?.rol) && (
+              {/* TAB 4: Compromisos de la revisión */}
+              {tabDetalle === 4 && (
+                <CompromisosDeRevision
+                  compromisos={rev.compromisos}
+                  esBorrador={rev.esBorrador}
+                  puedeVerSeguimiento={['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno'].includes(user?.rol)}
+                  onVer={(id) => { setDetailDialog({ open: false, revision: null }); navigate(`/compromisos?id=${id}`); }}
+                />
+              )}
+
+              {/* TAB 5: Ubicación — solo master/gerencia */}
+              {tabDetalle === 5 && ['master', 'gerencia'].includes(user?.rol) && (
                 <Box>
                   {(!rev?.geolocalizacion?.inicio?.latitude && !rev?.geolocalizacion?.fin?.latitude) ? (
                     <Box textAlign="center" py={4}>

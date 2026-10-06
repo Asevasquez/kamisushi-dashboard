@@ -10,6 +10,7 @@ import {
   Assignment as AssignmentIcon,
   Store as StoreIcon,
   CheckCircle as CheckIcon,
+  School as SchoolIcon,
 } from '@mui/icons-material';
 import api from '../services/api';
 
@@ -28,6 +29,8 @@ export default function AsignarLocales() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedUsuario, setSelectedUsuario] = useState(null);
   const [selectedLocales, setSelectedLocales] = useState([]);
+  // 'asignados' = locales que administra/supervisa · 'mentoria' = locales que mentorea (solo administradores)
+  const [modoDialogo, setModoDialogo] = useState('asignados');
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState({ text: '', type: 'success' });
 
@@ -53,11 +56,16 @@ export default function AsignarLocales() {
     }
   };
 
-  const abrirAsignacion = async (usuario) => {
+  const abrirAsignacion = async (usuario, modo = 'asignados') => {
     setSelectedUsuario(usuario);
+    setModoDialogo(modo);
     try {
-      const response = await api.get(`/usuarios/${usuario._id}/locales`);
-      setSelectedLocales(response.data.map(l => l._id || l));
+      const url = modo === 'mentoria' ? `/compromisos/mentoria/${usuario._id}` : `/usuarios/${usuario._id}/locales`;
+      const response = await api.get(url);
+      const ids = response.data.map(l => l._id || l);
+      // En mentoría no se arrastran locales que la persona ya administra.
+      const propios = new Set((usuario.localesAsignados || []).map(l => String(l._id || l)));
+      setSelectedLocales(modo === 'mentoria' ? ids.filter(id => !propios.has(String(id))) : ids);
       setDialogOpen(true);
     } catch (error) {
       console.error('Error cargando locales asignados:', error);
@@ -74,21 +82,31 @@ export default function AsignarLocales() {
     );
   };
 
+  // En modo mentoría, los locales que la persona ya administra no se pueden elegir.
+  const propiosIds = new Set((selectedUsuario?.localesAsignados || []).map(l => String(l._id || l)));
+  const esPropio = (localId) => modoDialogo === 'mentoria' && propiosIds.has(String(localId));
+  const seleccionables = locales.filter(l => !esPropio(l._id));
+
   const seleccionarTodos = () => {
-    if (selectedLocales.length === locales.length) {
+    if (selectedLocales.length === seleccionables.length) {
       setSelectedLocales([]);
     } else {
-      setSelectedLocales(locales.map(l => l._id));
+      setSelectedLocales(seleccionables.map(l => l._id));
     }
   };
 
   const handleGuardar = async () => {
     setGuardando(true);
     try {
-      await api.post(`/usuarios/${selectedUsuario._id}/asignar-locales`, {
-        localesIds: selectedLocales,
-      });
-      showMsg(`Locales asignados correctamente a ${selectedUsuario.nombre}`);
+      if (modoDialogo === 'mentoria') {
+        await api.put(`/compromisos/mentoria/${selectedUsuario._id}`, { localesIds: selectedLocales });
+        showMsg(`Locales de mentoría actualizados para ${selectedUsuario.nombre}`);
+      } else {
+        await api.post(`/usuarios/${selectedUsuario._id}/asignar-locales`, {
+          localesIds: selectedLocales,
+        });
+        showMsg(`Locales asignados correctamente a ${selectedUsuario.nombre}`);
+      }
       setDialogOpen(false);
       cargarDatos();
     } catch (error) {
@@ -117,6 +135,7 @@ export default function AsignarLocales() {
       <Typography variant="h4" fontWeight={600} mb={1}>Asignar Locales</Typography>
       <Typography variant="body2" color="textSecondary" mb={3}>
         Asigna uno o más locales a supervisores, administradores y mentores para que puedan gestionar sus revisiones y mentorías.
+        A los administradores también puedes indicarles los locales que mentorean (seguimiento de compromisos en solo lectura).
       </Typography>
 
       {mensaje.text && <Alert severity={mensaje.type} sx={{ mb: 2 }}>{mensaje.text}</Alert>}
@@ -202,17 +221,34 @@ export default function AsignarLocales() {
                           )}
                         </Box>
                       )}
+                      {usuario.rol === 'administrador' && (usuario.localesMentoria?.length || 0) > 0 && (
+                        <Chip label={`Mentoría: ${usuario.localesMentoria.length} local${usuario.localesMentoria.length !== 1 ? 'es' : ''}`}
+                          size="small" sx={{ mt: 0.5, bgcolor: '#e8e2fb', color: '#3b1e8a', fontWeight: 600 }} />
+                      )}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        startIcon={<AssignmentIcon />}
-                        onClick={() => abrirAsignacion(usuario)}
-                        sx={{ borderColor: '#f20000', color: '#f20000' }}
-                      >
-                        Asignar Locales
-                      </Button>
+                      <Box display="flex" flexWrap="wrap" gap={1}>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          startIcon={<AssignmentIcon />}
+                          onClick={() => abrirAsignacion(usuario)}
+                          sx={{ borderColor: '#f20000', color: '#f20000' }}
+                        >
+                          Asignar Locales
+                        </Button>
+                        {usuario.rol === 'administrador' && (
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            startIcon={<SchoolIcon />}
+                            onClick={() => abrirAsignacion(usuario, 'mentoria')}
+                            sx={{ borderColor: '#6d28d9', color: '#6d28d9' }}
+                          >
+                            Locales que mentorea
+                          </Button>
+                        )}
+                      </Box>
                     </TableCell>
                   </TableRow>
                 );
@@ -228,7 +264,7 @@ export default function AsignarLocales() {
           <Box display="flex" alignItems="center" gap={1}>
             <StoreIcon />
             <Box>
-              <Typography variant="h6">Asignar Locales</Typography>
+              <Typography variant="h6">{modoDialogo === 'mentoria' ? 'Locales que mentorea' : 'Asignar Locales'}</Typography>
               <Typography variant="caption" sx={{ opacity: 0.85 }}>
                 {selectedUsuario?.nombre} — {selectedUsuario?.rol}
               </Typography>
@@ -248,13 +284,14 @@ export default function AsignarLocales() {
           <Grid container spacing={1}>
             {locales.map((local) => {
               const asignado = selectedLocales.includes(local._id);
+              const bloqueado = esPropio(local._id);
               return (
                 <Grid item xs={12} sm={6} key={local._id}>
                   <Paper
                     variant="outlined"
-                    onClick={() => toggleLocal(local._id)}
+                    onClick={() => !bloqueado && toggleLocal(local._id)}
                     sx={{
-                      p: 1.5, cursor: 'pointer',
+                      p: 1.5, cursor: bloqueado ? 'not-allowed' : 'pointer', opacity: bloqueado ? 0.55 : 1,
                       borderColor: asignado ? '#f20000' : 'divider',
                       bgcolor: asignado ? 'rgba(242,0,0,0.08)' : 'background.paper',
                       transition: 'all 0.15s',
@@ -264,6 +301,7 @@ export default function AsignarLocales() {
                     <Box display="flex" alignItems="center" gap={1}>
                       <Checkbox
                         checked={asignado}
+                        disabled={bloqueado}
                         size="small"
                         sx={{ p: 0, color: '#f20000', '&.Mui-checked': { color: '#f20000' } }}
                         onChange={() => toggleLocal(local._id)}
@@ -273,6 +311,9 @@ export default function AsignarLocales() {
                         <Typography variant="body2" fontWeight={600}>{local.nombre}</Typography>
                         {local.ciudad && (
                           <Typography variant="caption" color="textSecondary">{local.ciudad}</Typography>
+                        )}
+                        {bloqueado && (
+                          <Typography variant="caption" color="textSecondary" display="block">Ya es su local: lo administra</Typography>
                         )}
                       </Box>
                       {asignado && <CheckIcon fontSize="small" sx={{ color: '#f20000' }} />}
