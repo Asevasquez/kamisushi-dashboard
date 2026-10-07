@@ -416,7 +416,7 @@ const TABS = [
   { valor: 'cerrado', label: 'Cerrados' },
 ];
 
-function Seguimiento({ esAdmin, localInicial, idAbrir, onCerrarDetalle, notificar }) {
+function Seguimiento({ esAdmin, esMentor, localInicial, idAbrir, onCerrarDetalle, notificar }) {
   const { tono, fondo } = useTono();
   const [estado, setEstado] = useState('todos');
   const [filtros, setFiltros] = useState({ localId: localInicial || '', seccion: '', supervisorId: '', mes: '' });
@@ -457,10 +457,19 @@ function Seguimiento({ esAdmin, localInicial, idAbrir, onCerrarDetalle, notifica
   const cargarResumenes = useCallback(async () => {
     if (!esAdmin) return;
     const pedir = (a) => api.get('/compromisos/resumen', { params: { alcance: a, meses: 12 } }).then((r) => r.data).catch(() => null);
-    const [propios, mentoria] = await Promise.all([pedir('propios'), pedir('mentoria')]);
+    // La mentoría (solo lectura) existe únicamente para el mentor.
+    const [propios, mentoria] = await Promise.all([pedir('propios'), esMentor ? pedir('mentoria') : Promise.resolve(null)]);
     setResumenes({ propios, mentoria });
-  }, [esAdmin]);
+  }, [esAdmin, esMentor]);
   useEffect(() => { cargarResumenes(); }, [cargarResumenes]);
+
+  // El mentor parte en "Mentoría" si en sus locales administrados aún no hay compromisos.
+  const alcanceInicialFijado = useRef(false);
+  useEffect(() => {
+    if (!esMentor || alcanceInicialFijado.current || !resumenes.propios || !resumenes.mentoria) return;
+    alcanceInicialFijado.current = true;
+    if ((resumenes.propios.totales?.asumidos || 0) === 0 && (resumenes.mentoria.totales?.asumidos || 0) > 0) setAlcance('mentoria');
+  }, [esMentor, resumenes]);
 
   const alCambiar = () => { cargar(); cargarResumenes(); };
   const cambiarEstado = (v) => { setEstado(v); setPage(0); };
@@ -473,7 +482,7 @@ function Seguimiento({ esAdmin, localInicial, idAbrir, onCerrarDetalle, notifica
   const cn = resp.conteos;
   const resumenActual = resumenes[alcance];
   const mentoria = resumenes.mentoria;
-  const tieneMentoria = esAdmin && (mentoria?.totales?.asumidos || 0) > 0;
+  const tieneMentoria = esMentor && (mentoria?.totales?.asumidos || 0) > 0;
 
   const kpis = esAdmin
     ? [
@@ -493,15 +502,15 @@ function Seguimiento({ esAdmin, localInicial, idAbrir, onCerrarDetalle, notifica
 
   return (
     <Box>
-      {esAdmin && tieneMentoria && (
+      {esMentor && (
         <ToggleButtonGroup exclusive value={alcance} onChange={(_, v) => cambiarAlcance(v)} sx={{ mb: 2 }} aria-label="Alcance">
           <ToggleButton value="propios" sx={{ px: 3, fontWeight: 700 }}>Mis locales</ToggleButton>
           <ToggleButton value="mentoria" sx={{ px: 3, fontWeight: 700 }}>
-            Mentoría ({mentoria.totalLocales} local{mentoria.totalLocales !== 1 ? 'es' : ''})
+            Mentoría{mentoria ? ` (${mentoria.totalLocales} local${mentoria.totalLocales !== 1 ? 'es' : ''})` : ''}
           </ToggleButton>
         </ToggleButtonGroup>
       )}
-      {esAdmin && alcance === 'mentoria' && (
+      {esMentor && alcance === 'mentoria' && (
         <Alert severity="info" sx={{ mb: 2 }}>Seguimiento en solo lectura: la evidencia la sube el administrador de cada local.</Alert>
       )}
 
@@ -633,7 +642,7 @@ function Seguimiento({ esAdmin, localInicial, idAbrir, onCerrarDetalle, notifica
                   <Box>
                     <Typography fontWeight={700}>{l.localNombre}</Typography>
                     <Typography variant="caption" color="text.secondary">
-                      Administrador/a: {(l.responsables || []).join(', ') || '—'}
+                      Responsables: {(l.responsables || []).join(', ') || '—'}
                     </Typography>
                   </Box>
                   <SemaforoChip valor={l.evaluacion} />
@@ -659,7 +668,7 @@ function Seguimiento({ esAdmin, localInicial, idAbrir, onCerrarDetalle, notifica
 // ─── Vista general (gerencia y master) ─────────────────────────────────────
 function VistaGeneral({ onVerLocal, notificar }) {
   const { tono, fondo } = useTono();
-  const [f, setF] = useState({ meses: 6, seccion: '', localId: '', responsableId: '', supervisorId: '' });
+  const [f, setF] = useState({ meses: 6, seccion: '', localId: '', administradorId: '', supervisorId: '' });
   const [topLocales, setTopLocales] = useState(10);
   const [r, setR] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -669,7 +678,7 @@ function VistaGeneral({ onVerLocal, notificar }) {
 
   const paramsFiltro = useCallback(() => {
     const p = { meses: f.meses };
-    ['seccion', 'localId', 'responsableId', 'supervisorId'].forEach((k) => { if (f[k]) p[k] = f[k]; });
+    ['seccion', 'localId', 'administradorId', 'supervisorId'].forEach((k) => { if (f[k]) p[k] = f[k]; });
     return p;
   }, [f]);
 
@@ -809,7 +818,7 @@ function VistaGeneral({ onVerLocal, notificar }) {
           {SECCIONES.map((s) => <MenuItem key={s.key} value={s.key}>{s.label}</MenuItem>)}
         </TextField>
         {select('Local', 'localId', opciones.locales, 'Todos los locales', 200)}
-        {select('Administrador', 'responsableId', opciones.administradores, 'Todos los administradores', 200)}
+        {select('Administrador', 'administradorId', opciones.administradores, 'Todos los administradores', 200)}
         {select('Supervisora', 'supervisorId', opciones.supervisoras, 'Todas las supervisoras', 190)}
       </Paper>
 
@@ -1017,7 +1026,9 @@ function VistaGeneral({ onVerLocal, notificar }) {
 export default function Compromisos() {
   const { user } = useAuth();
   const esGlobal = ['master', 'gerencia'].includes(user?.rol);
-  const esAdmin = user?.rol === 'administrador';
+  // Administrador y mentor suben evidencia en sus locales; solo el mentor tiene además "Mentoría" (solo lectura).
+  const esAdmin = ['administrador', 'mentor'].includes(user?.rol);
+  const esMentor = user?.rol === 'mentor';
   const [searchParams, setSearchParams] = useSearchParams();
   const [vista, setVista] = useState('seguimiento');
   const [localInicial, setLocalInicial] = useState('');
@@ -1034,9 +1045,11 @@ export default function Compromisos() {
         <Box>
           <Typography variant="h5" fontWeight={500}>Compromisos</Typography>
           <Typography variant="caption" color="text.secondary">
-            {esAdmin
-              ? 'Los de tus locales y el seguimiento de los locales que mentoreas'
-              : 'Seguimiento de los compromisos acordados en las revisiones'}
+            {esMentor
+              ? 'Los de los locales que administras y el seguimiento de los que mentoreas'
+              : esAdmin
+                ? 'Los compromisos de tus locales: sube la evidencia antes de la fecha límite'
+                : 'Seguimiento de los compromisos acordados en las revisiones'}
           </Typography>
         </Box>
         {esGlobal && (
@@ -1050,7 +1063,7 @@ export default function Compromisos() {
       <Box mt={2}>
         {esGlobal && vista === 'general'
           ? <VistaGeneral onVerLocal={verLocal} notificar={notificar} />
-          : <Seguimiento key={claveSeg} esAdmin={esAdmin} localInicial={localInicial}
+          : <Seguimiento key={claveSeg} esAdmin={esAdmin} esMentor={esMentor} localInicial={localInicial}
               idAbrir={searchParams.get('id')} onCerrarDetalle={cerrarDetalle} notificar={notificar} />}
       </Box>
 

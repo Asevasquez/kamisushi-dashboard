@@ -52,7 +52,7 @@ function AppRoutes() {
         <Route path="dashboard-supervision" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno']}><DashboardSupervision /></PrivateRoute>} />
         <Route path="mentorias" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'mentor']}><Mentorias /></PrivateRoute>} />
         <Route path="compromisos-mentoria" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'mentor', 'administrador']}><CompromisosMentoria /></PrivateRoute>} />
-        <Route path="compromisos" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno']}><Compromisos /></PrivateRoute>} />
+        <Route path="compromisos" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor']}><Compromisos /></PrivateRoute>} />
         <Route path="auditorias" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'auditor']}><Auditorias /></PrivateRoute>} />
         <Route path="usuarios" element={<PrivateRoute allowedRoles={['master']}><Usuarios /></PrivateRoute>} />
         <Route path="locales" element={<PrivateRoute allowedRoles={['master']}><Locales /></PrivateRoute>} />
