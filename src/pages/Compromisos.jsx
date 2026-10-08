@@ -3,12 +3,12 @@ import { useSearchParams } from 'react-router-dom';
 import {
   Box, Paper, Typography, Button, IconButton, Tooltip, Chip, Tabs, Tab, TextField, MenuItem,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TablePagination,
-  Dialog, DialogTitle, DialogContent, CircularProgress, Alert, Snackbar,
+  Dialog, DialogTitle, DialogContent, DialogActions, CircularProgress, Alert, Snackbar,
   ToggleButton, ToggleButtonGroup,
 } from '@mui/material';
 import { useTheme, alpha, lighten } from '@mui/material/styles';
 import {
-  Visibility as ViewIcon, Close as CloseIcon, Download as DownloadIcon,
+  Visibility as ViewIcon, Close as CloseIcon, Download as DownloadIcon, Delete as DeleteIcon,
   CheckCircleOutlined as ClosedIcon, Schedule as ReviewIcon, WarningAmber as OverdueIcon,
   RadioButtonUnchecked as OpenIcon, Send as SendIcon, Image as ImageIcon, Check as CheckIcon,
 } from '@mui/icons-material';
@@ -156,7 +156,7 @@ const ACCION = {
   aprobado: { label: 'Aprobado y cerrado', color: '#1b6b28' },
 };
 
-function DetalleDialog({ id, onClose, onChanged, notificar }) {
+function DetalleDialog({ id, onClose, onChanged, onEliminar, notificar }) {
   const { tono, fondo } = useTono();
   const [c, setC] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -400,6 +400,13 @@ function DetalleDialog({ id, onClose, onChanged, notificar }) {
                 </Box>
               </Paper>
             )}
+            {c.puedeEliminar && (
+              <Box display="flex" justifyContent="flex-start" mt={2}>
+                <Button color="error" startIcon={<DeleteIcon />} onClick={() => onEliminar(c)} sx={{ fontWeight: 700 }}>
+                  Eliminar compromiso
+                </Button>
+              </Box>
+            )}
           </DialogContent>
         </>
       )}
@@ -429,6 +436,8 @@ function Seguimiento({ esAdmin, esMentor, localInicial, idAbrir, onCerrarDetalle
   const [opciones, setOpciones] = useState({ locales: [], administradores: [], supervisoras: [] });
   const [resumenes, setResumenes] = useState({ propios: null, mentoria: null });
   const [detalleId, setDetalleId] = useState(idAbrir || null);
+  const [aEliminar, setAEliminar] = useState(null);
+  const [eliminando, setEliminando] = useState(false);
 
   useEffect(() => { if (idAbrir) setDetalleId(idAbrir); }, [idAbrir]);
 
@@ -477,6 +486,20 @@ function Seguimiento({ esAdmin, esMentor, localInicial, idAbrir, onCerrarDetalle
   const cambiarAlcance = (v) => { if (!v) return; setAlcance(v); setFiltros((f) => ({ ...f, localId: '' })); setEstado('todos'); setPage(0); };
   const verMentoreado = (localId) => { setAlcance('mentoria'); setFiltros((f) => ({ ...f, localId })); setEstado('todos'); setPage(0); window.scrollTo({ top: 0, behavior: 'smooth' }); };
   const cerrarDetalle = () => { setDetalleId(null); onCerrarDetalle(); };
+  const confirmarEliminar = async () => {
+    if (!aEliminar) return;
+    setEliminando(true);
+    try {
+      await api.delete(`/compromisos/${aEliminar._id}`);
+      notificar('Compromiso eliminado');
+      setAEliminar(null);
+      alCambiar();
+    } catch (e) {
+      notificar(e.response?.data?.error || 'No se pudo eliminar el compromiso', 'error');
+    } finally {
+      setEliminando(false);
+    }
+  };
   const limpiar = () => { setFiltros({ localId: '', seccion: '', supervisorId: '', mes: '' }); setEstado('todos'); setPage(0); };
 
   const cn = resp.conteos;
@@ -599,16 +622,23 @@ function Seguimiento({ esAdmin, esMentor, localInicial, idAbrir, onCerrarDetalle
                       </TableCell>
                       <TableCell><EstadoChip estado={c.estadoVisible} /></TableCell>
                       <TableCell align="center">
-                        {c.puedeEnviarEvidencia ? (
-                          <Button size="small" variant="contained" startIcon={<SendIcon />} onClick={() => setDetalleId(c._id)}
-                            sx={{ borderRadius: 5, fontWeight: 700, whiteSpace: 'nowrap', bgcolor: '#f20000' }}>Enviar evidencia</Button>
-                        ) : c.puedeRevisar ? (
-                          <Button size="small" variant="outlined" onClick={() => setDetalleId(c._id)} sx={{ borderRadius: 5, fontWeight: 700 }}>Revisar</Button>
-                        ) : (
-                          <Tooltip title="Ver detalle">
-                            <IconButton aria-label={`Ver compromiso de ${c.localNombre}`} onClick={() => setDetalleId(c._id)}><ViewIcon fontSize="small" /></IconButton>
-                          </Tooltip>
-                        )}
+                        <Box display="flex" alignItems="center" justifyContent="center" gap={0.5}>
+                          {c.puedeEnviarEvidencia ? (
+                            <Button size="small" variant="contained" startIcon={<SendIcon />} onClick={() => setDetalleId(c._id)}
+                              sx={{ borderRadius: 5, fontWeight: 700, whiteSpace: 'nowrap', bgcolor: '#f20000' }}>Enviar evidencia</Button>
+                          ) : c.puedeRevisar ? (
+                            <Button size="small" variant="outlined" onClick={() => setDetalleId(c._id)} sx={{ borderRadius: 5, fontWeight: 700 }}>Revisar</Button>
+                          ) : (
+                            <Tooltip title="Ver detalle">
+                              <IconButton aria-label={`Ver compromiso de ${c.localNombre}`} onClick={() => setDetalleId(c._id)}><ViewIcon fontSize="small" /></IconButton>
+                            </Tooltip>
+                          )}
+                          {c.puedeEliminar && (
+                            <Tooltip title="Eliminar compromiso">
+                              <IconButton color="error" aria-label={`Eliminar compromiso de ${c.localNombre}`} onClick={() => setAEliminar(c)}><DeleteIcon fontSize="small" /></IconButton>
+                            </Tooltip>
+                          )}
+                        </Box>
                       </TableCell>
                     </TableRow>
                   );
@@ -660,7 +690,28 @@ function Seguimiento({ esAdmin, esMentor, localInicial, idAbrir, onCerrarDetalle
         </Box>
       )}
 
-      <DetalleDialog id={detalleId} onClose={cerrarDetalle} onChanged={alCambiar} notificar={notificar} />
+      <DetalleDialog id={detalleId} onClose={cerrarDetalle} onChanged={alCambiar} notificar={notificar}
+        onEliminar={(c) => { cerrarDetalle(); setAEliminar(c); }} />
+
+      <Dialog open={!!aEliminar} onClose={() => !eliminando && setAEliminar(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Eliminar compromiso</DialogTitle>
+        <DialogContent>
+          {aEliminar && (
+            <>
+              <Typography sx={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.4, color: 'text.secondary' }}>
+                {aEliminar.localNombre} · {aEliminar.seccionLabel}
+              </Typography>
+              <Typography sx={{ mt: 0.5, mb: 2 }}>{aEliminar.texto}</Typography>
+              <Alert severity="warning">Se eliminará también su evidencia e historial. Esta acción no se puede deshacer.</Alert>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setAEliminar(null)} disabled={eliminando}>Cancelar</Button>
+          <Button color="error" variant="contained" onClick={confirmarEliminar} disabled={eliminando}
+            startIcon={eliminando ? <CircularProgress size={16} color="inherit" /> : <DeleteIcon />}>Eliminar</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
