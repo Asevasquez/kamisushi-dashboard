@@ -59,7 +59,7 @@ export default function Auditorias() {
   const [page, setPage] = useState(0);
   const [detalle, setDetalle] = useState(null);
   const [pdfLoading, setPdfLoading] = useState(false);
-  const [filters, setFilters] = useState({ mes: '', localId: '', categoria: '' });
+  const [filters, setFilters] = useState({ mes: '', localId: '', categoria: '', supervision: '' });
   const [locales, setLocales] = useState([]);
 
   useEffect(() => {
@@ -73,6 +73,7 @@ export default function Auditorias() {
       if (filters.mes) params.mes = filters.mes;
       if (filters.localId) params.localId = filters.localId;
       if (filters.categoria) params.categoria = filters.categoria;
+      if (filters.supervision) params.supervision = filters.supervision; // con | sin supervisión previa
       const { data } = await api.get('/auditorias', { params });
       setAuditorias(data.data || []);
       setTotal(data.total || 0);
@@ -130,7 +131,7 @@ export default function Auditorias() {
   return (
     <Box sx={{ width: '100%', maxWidth: '100%' }}>
       <Typography variant="h5" fontWeight={500}>Auditoría</Typography>
-      <Typography variant="caption" color="text.secondary">Evaluaciones a revisiones ya finalizadas</Typography>
+      <Typography variant="caption" color="text.secondary">Evaluaciones a revisiones finalizadas o directamente a un local (sin supervisión previa)</Typography>
 
       <Grid container spacing={2} sx={{ my: 2, width: '100%' }}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
@@ -157,7 +158,13 @@ export default function Auditorias() {
           <MenuItem value="">Todas</MenuItem>
           {Object.keys(CATEGORIA_COLOR).map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
         </TextField>
-        <Button size="small" onClick={() => setFilters({ mes: '', localId: '', categoria: '' })}>Limpiar</Button>
+        <TextField select size="small" label="Supervisión previa" value={filters.supervision}
+            onChange={(e) => setFilters({ ...filters, supervision: e.target.value })} sx={{ width: 200 }}>
+            <MenuItem value="">Todas</MenuItem>
+            <MenuItem value="con">Con supervisión previa</MenuItem>
+            <MenuItem value="sin">Sin supervisión previa</MenuItem>
+          </TextField>
+          <Button size="small" onClick={() => setFilters({ mes: '', localId: '', categoria: '', supervision: '' })}>Limpiar</Button>
       </Paper>
 
       <Paper sx={{ borderRadius: 3, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
@@ -185,8 +192,12 @@ export default function Auditorias() {
                 {auditorias.map((a) => (
                   <TableRow key={a._id} hover>
                     <TableCell><b>{a.localNombre}</b></TableCell>
-                    <TableCell>{new Date(a.fechaRevision).toLocaleDateString('es-CL')}</TableCell>
-                    <TableCell>{a.supervisorNombre}</TableCell>
+                    <TableCell>
+                      {a.revisionId
+                        ? new Date(a.fechaRevision).toLocaleDateString('es-CL')
+                        : <Chip size="small" variant="outlined" label="Sin supervisión previa" />}
+                    </TableCell>
+                    <TableCell>{a.supervisorNombre || '—'}</TableCell>
                     <TableCell>{new Date(a.fechaAuditoria).toLocaleDateString('es-CL')}</TableCell>
                     <TableCell>{a.auditorNombre}</TableCell>
                     <TableCell align="center">{a.puntajeServicioCliente}/30</TableCell>
@@ -227,7 +238,7 @@ export default function Auditorias() {
             <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: colorCategoria(detalle.categoria), color: '#fff' }}>
               <Box>
                 <Typography variant="h6">{detalle.localNombre} — {detalle.puntajeTotal}% ({detalle.categoria})</Typography>
-                <Typography variant="caption">Revisión del {new Date(detalle.fechaRevision).toLocaleDateString('es-CL')} · Auditado por {detalle.auditorNombre} el {new Date(detalle.fechaAuditoria).toLocaleDateString('es-CL')}</Typography>
+                <Typography variant="caption">{detalle.revisionId ? `Revisión del ${new Date(detalle.fechaRevision).toLocaleDateString('es-CL')}` : 'Sin supervisión previa'}{detalle.supervisorNombre ? ` · Supervisora: ${detalle.supervisorNombre}` : ''} · Auditado por {detalle.auditorNombre} el {new Date(detalle.fechaAuditoria).toLocaleDateString('es-CL')}</Typography>
               </Box>
               <IconButton onClick={() => setDetalle(null)} sx={{ color: '#fff' }}><CloseIcon /></IconButton>
             </DialogTitle>

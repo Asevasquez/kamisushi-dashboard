@@ -18,6 +18,9 @@ export default function Locales() {
   const [formData, setFormData] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [mensaje, setMensaje] = useState({ text: '', type: 'success' });
+  const [errorDialogo, setErrorDialogo] = useState('');
+  const [intentoGuardar, setIntentoGuardar] = useState(false);
+  const [guardando, setGuardando] = useState(false);
 
   useEffect(() => { cargarLocales(); }, []);
 
@@ -40,22 +43,43 @@ export default function Locales() {
       setFormData(emptyForm);
       setEditingId(null);
     }
+    setErrorDialogo('');
+    setIntentoGuardar(false);
     setDialogOpen(true);
   };
 
   const handleGuardar = async () => {
+    const datos = {
+      ...formData,
+      nombre: formData.nombre.trim(),
+      direccion: formData.direccion.trim(),
+      ciudad: formData.ciudad.trim(),
+      codigoExterno: (formData.codigoExterno || '').trim(),
+    };
+    const faltan = [['nombre', 'nombre'], ['direccion', 'dirección'], ['ciudad', 'ciudad']]
+      .filter(([campo]) => !datos[campo]).map(([, etiqueta]) => etiqueta);
+    setIntentoGuardar(true);
+    if (faltan.length > 0) {
+      setErrorDialogo(`Completa ${faltan.length > 1 ? 'los campos' : 'el campo'}: ${faltan.join(', ')}.`);
+      return;
+    }
+    setErrorDialogo('');
+    setGuardando(true);
     try {
       if (editingId) {
-        await api.put(`/locales/${editingId}`, formData);
+        await api.put(`/locales/${editingId}`, datos);
         showMsg('Local actualizado correctamente');
       } else {
-        await api.post('/locales', formData);
+        await api.post('/locales', datos);
         showMsg('Local creado correctamente');
       }
       setDialogOpen(false);
       cargarLocales();
     } catch (error) {
-      showMsg(error.response?.data?.error || 'Error al guardar', 'error');
+      // El mensaje va DENTRO del diálogo: el aviso de la página queda tapado por el diálogo abierto.
+      setErrorDialogo(error.response?.data?.error || 'No se pudo guardar el local. Revisa tu conexión e inténtalo de nuevo.');
+    } finally {
+      setGuardando(false);
     }
   };
 
@@ -130,37 +154,31 @@ export default function Locales() {
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editingId ? 'Editar Local' : 'Nuevo Local'}</DialogTitle>
         <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 0.5 }}>
-            <Grid item xs={12}>
-              <TextField fullWidth label="Nombre" value={formData.nombre}
-                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })} />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField fullWidth label="Código (opcional)" value={formData.codigoExterno}
-                helperText="Código del local en otro sistema (franquicias, POS, etc.), si aplica"
-                onChange={(e) => setFormData({ ...formData, codigoExterno: e.target.value })} />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField fullWidth label="Dirección" value={formData.direccion}
-                onChange={(e) => setFormData({ ...formData, direccion: e.target.value })} />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Ciudad" value={formData.ciudad}
-                onChange={(e) => setFormData({ ...formData, ciudad: e.target.value })} />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField select fullWidth label="Estado" value={formData.activo}
-                onChange={(e) => setFormData({ ...formData, activo: e.target.value === 'true' })}>
-                <option value="true">Activo</option>
-                <option value="false">Inactivo</option>
-              </TextField>
-            </Grid>
-          </Grid>
+          {errorDialogo && <Alert severity="error" sx={{ mb: 2 }}>{errorDialogo}</Alert>}
+          <Box sx={{ display: 'grid', gap: 2, mt: 0.5, gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' } }}>
+            <TextField required fullWidth label="Nombre" value={formData.nombre} sx={{ gridColumn: '1 / -1' }}
+              error={intentoGuardar && !formData.nombre.trim()}
+              onChange={(e) => setFormData({ ...formData, nombre: e.target.value })} />
+            <TextField fullWidth label="Código (opcional)" value={formData.codigoExterno} sx={{ gridColumn: '1 / -1' }}
+              helperText="Código del local en otro sistema (franquicias, POS, etc.), si aplica"
+              onChange={(e) => setFormData({ ...formData, codigoExterno: e.target.value })} />
+            <TextField required fullWidth label="Dirección" value={formData.direccion} sx={{ gridColumn: '1 / -1' }}
+              error={intentoGuardar && !formData.direccion.trim()}
+              onChange={(e) => setFormData({ ...formData, direccion: e.target.value })} />
+            <TextField required fullWidth label="Ciudad" value={formData.ciudad}
+              error={intentoGuardar && !formData.ciudad.trim()}
+              onChange={(e) => setFormData({ ...formData, ciudad: e.target.value })} />
+            <TextField select fullWidth label="Estado" value={String(formData.activo)} SelectProps={{ native: true }}
+              onChange={(e) => setFormData({ ...formData, activo: e.target.value === 'true' })}>
+              <option value="true">Activo</option>
+              <option value="false">Inactivo</option>
+            </TextField>
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialogOpen(false)}>Cancelar</Button>
-          <Button onClick={handleGuardar} variant="contained" sx={{ bgcolor: '#f20000' }}>
-            {editingId ? 'Actualizar' : 'Crear'}
+          <Button onClick={handleGuardar} variant="contained" sx={{ bgcolor: '#f20000' }} disabled={guardando}>
+            {guardando ? 'Guardando…' : editingId ? 'Actualizar' : 'Crear'}
           </Button>
         </DialogActions>
       </Dialog>
