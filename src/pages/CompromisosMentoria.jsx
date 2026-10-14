@@ -101,7 +101,7 @@ export default function CompromisosMentoria() {
               <TableBody>
                 {lista.map((c) => (
                   <TableRow key={c._id} hover sx={{ cursor: 'pointer' }} onClick={() => setSeleccionado(c)}>
-                    <TableCell><b>{c.localNombre}</b><Typography variant="caption" display="block" color="text.secondary">{fmtFecha(c.fechaMentoria)}</Typography></TableCell>
+                    <TableCell><b>{c.localNombre}</b><Typography variant="caption" display="block" color="text.secondary">{c.tipo === 'tutoria' ? 'Tutoría' : 'Mentoría'} del {fmtFecha(c.fechaMentoria)}</Typography></TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>{String(c.preguntaNumero).padStart(2, '0')} · {c.ambito}<Typography variant="caption" display="block" color="text.secondary">{c.puntaje}/10</Typography></TableCell>
                     <TableCell sx={{ maxWidth: 360 }}>{c.compromisoAlumno}</TableCell>
                     <TableCell>{c.responsable}</TableCell>
@@ -131,7 +131,7 @@ export default function CompromisosMentoria() {
         open={!!seleccionado}
         mentoriaId={seleccionado?.mentoriaId}
         compromiso={seleccionado}
-        contexto={seleccionado ? `${seleccionado.localNombre} · Mentoría del ${fmtFecha(seleccionado.fechaMentoria)} · ${seleccionado.numeroInforme || ''}` : ''}
+        contexto={seleccionado ? `${seleccionado.localNombre} · ${seleccionado.tipo === 'tutoria' ? 'Tutoría' : 'Mentoría'} del ${fmtFecha(seleccionado.fechaMentoria)} · ${seleccionado.numeroInforme || ''}` : ''}
         onClose={() => setSeleccionado(null)}
         onActualizado={cargar}
       />

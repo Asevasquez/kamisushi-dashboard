@@ -43,7 +43,44 @@ function duracion(ini, fin) {
   return min >= 60 ? `${Math.floor(min / 60)} h ${min % 60} min` : `${min} min`;
 }
 
-const FILTROS_VACIOS = { mes: '', localId: '', mentorId: '', categoria: '', estado: '' };
+const FILTROS_VACIOS = { mes: '', localId: '', mentorId: '', categoria: '', estado: '', tipo: '' };
+
+// Mentoría y tutoría usan el mismo formulario; solo cambia cómo se registran
+const TIPO = {
+  mentoria: { label: 'Mentoría', color: '#1e5aa8' },
+  tutoria: { label: 'Tutoría', color: '#00897b' },
+};
+const tipoDe = (m) => TIPO[m?.tipo] || TIPO.mentoria;
+const mesActual = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+};
+
+// Cobertura del mes: ¿hizo la mentoría / tutoría en cada uno de sus locales?
+function CeldaCobertura({ dato, color }) {
+  if (!dato || !dato.total) return <Typography variant="body2" color="text.secondary">Sin locales</Typography>;
+  const pct = Math.round((dato.realizadas / dato.total) * 100);
+  return (
+    <Box minWidth={140}>
+      <Box display="flex" justifyContent="space-between">
+        <Typography variant="body2" fontWeight={700}>{dato.realizadas} / {dato.total}</Typography>
+        <Typography variant="caption" color="text.secondary">{pct}%</Typography>
+      </Box>
+      <LinearProgress variant="determinate" value={pct}
+        sx={{ height: 8, borderRadius: 4, mt: 0.5, bgcolor: 'action.hover', '& .MuiLinearProgress-bar': { bgcolor: pct === 100 ? '#2e7d32' : color, borderRadius: 4 } }} />
+    </Box>
+  );
+}
+
+function ChipsPendientes({ lista, color }) {
+  if (!lista?.length) return null;
+  return (
+    <Box display="flex" flexWrap="wrap" gap={0.5}>
+      {lista.slice(0, 4).map((l) => <Chip key={l._id} size="small" variant="outlined" label={l.nombre} sx={{ borderColor: color, color }} />)}
+      {lista.length > 4 && <Tooltip title={lista.slice(4).map((l) => l.nombre).join(', ')}><Chip size="small" label={`+${lista.length - 4}`} /></Tooltip>}
+    </Box>
+  );
+}
 
 export default function Mentorias() {
   const { user } = useAuth();
@@ -61,6 +98,7 @@ export default function Mentorias() {
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [loading, setLoading] = useState(true);
 
+  const [cobertura, setCobertura] = useState({ mes: '', mentores: [] });
   const [detalle, setDetalle] = useState(null);
   const [tab, setTab] = useState(0);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -89,7 +127,7 @@ export default function Mentorias() {
       const params = paramsFiltro();
       const [lista, res] = await Promise.all([
         api.get('/mentorias', { params: { ...params, page: page + 1, limit: rowsPerPage } }),
-        api.get('/mentorias/resumen', { params: { mes: params.mes, localId: params.localId, mentorId: params.mentorId } }),
+        api.get('/mentorias/resumen', { params: { mes: params.mes, localId: params.localId, mentorId: params.mentorId, tipo: params.tipo } }),
       ]);
       setMentorias(lista.data.data || []);
       setTotal(lista.data.total || 0);
@@ -99,7 +137,25 @@ export default function Mentorias() {
     } finally {
       setLoading(false);
     }
-  }, [paramsFiltro, page, rowsPerPage]);
+    // Cobertura: aparte, para que un error aquí no deje la página vacía
+    try {
+      const mes = paramsFiltro().mes || mesActual();
+      if (esGlobal) {
+        const { data } = await api.get('/mentorias/cobertura', { params: { mes } });
+        setCobertura({ mes: data.mes, mentores: data.mentores || [] });
+      } else {
+        const { data } = await api.get('/mentorias/mis-locales', { params: { mes } });
+        const aFila = (lista) => ({
+          total: lista.length,
+          realizadas: lista.filter((l) => l.realizadaEnMes).length,
+          pendientes: lista.filter((l) => !l.realizadaEnMes).map((l) => ({ _id: l._id, nombre: l.nombre })),
+        });
+        setCobertura({ mes: data.mes, mentores: [{ mentorId: user?.id || user?._id, nombre: user?.nombre, mentoria: aFila(data.mentoria || []), tutoria: aFila(data.tutoria || []) }] });
+      }
+    } catch (e) {
+      setCobertura({ mes: '', mentores: [] });
+    }
+  }, [paramsFiltro, page, rowsPerPage, esGlobal, user]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -143,7 +199,7 @@ export default function Mentorias() {
   const pdf = async (m) => {
     setPdfLoading(true);
     try {
-      await descargarPdfMentoria(m._id, `Mentoria_${m.localNombre}_${m.numeroInforme || m._id}.pdf`);
+      await descargarPdfMentoria(m._id, `${m.tipo === 'tutoria' ? 'Tutoria' : 'Mentoria'}_${m.localNombre}_${m.numeroInforme || m._id}.pdf`);
     } catch (e) {
       alert('No se pudo generar el PDF');
     } finally {
@@ -152,11 +208,15 @@ export default function Mentorias() {
   };
 
   const umbral = catalogo.umbralPlanAccion || 7;
-  const columnas = esGlobal ? 11 : 10;
+  const columnas = esGlobal ? 12 : 11;
+  const filasCobertura = (cobertura.mentores || [])
+    .filter((f) => !filters.mentorId || String(f.mentorId) === String(filters.mentorId))
+    .filter((f) => (f.mentoria?.total || 0) + (f.tutoria?.total || 0) > 0);
+  const [anioCob, mesCob] = (cobertura.mes || '').split('-');
 
   return (
     <Box sx={{ width: '100%', maxWidth: '100%' }}>
-      <Typography variant="h5" fontWeight={500}>Mentorías</Typography>
+      <Typography variant="h5" fontWeight={500}>Mentorías y Tutorías</Typography>
       <Typography variant="caption" color="text.secondary">Evaluación de administradores y seguimiento de compromisos</Typography>
 
       {/* ─── KPIs ─── */}
@@ -198,6 +258,12 @@ export default function Mentorias() {
           <MenuItem value="">Todas</MenuItem>
           {Object.keys(CATEGORIA_COLOR).map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
         </TextField>
+        <TextField select size="small" label="Tipo" value={filters.tipo}
+          onChange={(e) => { setPage(0); setFilters({ ...filters, tipo: e.target.value }); }} sx={{ width: 150 }}>
+          <MenuItem value="">Todos</MenuItem>
+          <MenuItem value="mentoria">Mentorías</MenuItem>
+          <MenuItem value="tutoria">Tutorías</MenuItem>
+        </TextField>
         <TextField select size="small" label="Estado" value={filters.estado}
           onChange={(e) => { setPage(0); setFilters({ ...filters, estado: e.target.value }); }} sx={{ width: 150 }}>
           <MenuItem value="">Todos</MenuItem>
@@ -206,6 +272,51 @@ export default function Mentorias() {
         </TextField>
         <Button size="small" onClick={() => { setPage(0); setFilters(FILTROS_VACIOS); }}>Limpiar</Button>
       </Paper>
+
+      {/* ─── Cobertura del mes ─── */}
+      {filasCobertura.length > 0 && (
+        <Paper sx={{ p: 2.5, mb: 2, borderRadius: 3, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+          <Typography variant="subtitle1" fontWeight={700}>Cobertura del mes{mesCob ? ` · ${mesCob}/${anioCob}` : ''}</Typography>
+          <Typography variant="caption" color="text.secondary">
+            Locales de cada lista con al menos una evaluación finalizada en el mes. Se cuenta solo lo hecho por el mentor asignado.
+          </Typography>
+          <TableContainer sx={{ mt: 1.5 }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Mentor</TableCell>
+                  <TableCell>Mentorías</TableCell>
+                  <TableCell>Tutorías</TableCell>
+                  <TableCell>Locales pendientes</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filasCobertura.map((f) => (
+                  <TableRow key={f.mentorId}>
+                    <TableCell><b>{f.nombre}</b></TableCell>
+                    <TableCell><CeldaCobertura dato={f.mentoria} color={TIPO.mentoria.color} /></TableCell>
+                    <TableCell><CeldaCobertura dato={f.tutoria} color={TIPO.tutoria.color} /></TableCell>
+                    <TableCell sx={{ maxWidth: 420 }}>
+                      {!(f.mentoria?.pendientes?.length || f.tutoria?.pendientes?.length)
+                        ? <Typography variant="body2" sx={{ color: '#2e7d32', fontWeight: 700 }}>Al día</Typography>
+                        : (
+                          <Box display="flex" flexDirection="column" gap={0.75}>
+                            {f.mentoria?.pendientes?.length > 0 && (
+                              <Box><Typography variant="caption" color="text.secondary">Mentoría</Typography><ChipsPendientes lista={f.mentoria.pendientes} color={TIPO.mentoria.color} /></Box>
+                            )}
+                            {f.tutoria?.pendientes?.length > 0 && (
+                              <Box><Typography variant="caption" color="text.secondary">Tutoría</Typography><ChipsPendientes lista={f.tutoria.pendientes} color={TIPO.tutoria.color} /></Box>
+                            )}
+                          </Box>
+                        )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+      )}
 
       {/* ─── Puntaje por pregunta + por vencer ─── */}
       <Grid container spacing={2} sx={{ mb: 2, width: '100%' }}>
@@ -262,6 +373,7 @@ export default function Mentorias() {
             <Table stickyHeader size="small">
               <TableHead>
                 <TableRow>
+                  <TableCell>Tipo</TableCell>
                   <TableCell>Local</TableCell>
                   <TableCell>Fecha</TableCell>
                   <TableCell>Mentor</TableCell>
@@ -282,6 +394,7 @@ export default function Mentorias() {
                   const mapa = linkMapa(m.geolocalizacion?.inicio);
                   return (
                     <TableRow key={m._id} hover>
+                      <TableCell><Chip size="small" label={tipoDe(m).label} sx={{ bgcolor: tipoDe(m).color, color: '#fff', fontWeight: 700 }} /></TableCell>
                       <TableCell><b>{m.localNombre}</b></TableCell>
                       <TableCell>{fmtFecha(m.fechaMentoria)}</TableCell>
                       <TableCell>{m.mentorNombre}</TableCell>
@@ -349,7 +462,7 @@ export default function Mentorias() {
             <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: detalle.esBorrador ? '#616161' : colorCategoria(detalle.categoria), color: '#fff' }}>
               <Box>
                 <Typography variant="h6">
-                  {detalle.localNombre} — {detalle.puntajeTotal}/100 {detalle.esBorrador ? '(borrador)' : `(${detalle.categoria})`}
+                  {tipoDe(detalle).label} · {detalle.localNombre} — {detalle.puntajeTotal}/100 {detalle.esBorrador ? '(borrador)' : `(${detalle.categoria})`}
                 </Typography>
                 <Typography variant="caption">
                   {fmtFecha(detalle.fechaMentoria)} · Mentor {detalle.mentorNombre} · Administrador {detalle.alumnoNombre || '—'}

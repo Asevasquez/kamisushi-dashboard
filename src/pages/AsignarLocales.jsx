@@ -11,6 +11,7 @@ import {
   Store as StoreIcon,
   CheckCircle as CheckIcon,
   School as SchoolIcon,
+  SupervisorAccount as TutorIcon,
 } from '@mui/icons-material';
 import api from '../services/api';
 
@@ -22,11 +23,33 @@ const ROL_COLORS = {
   mentor: '#6d4c41',
 };
 
-// Un mentor no puede mentorear y administrar el mismo local: los de la otra lista aparecen bloqueados.
+// Un mentor tiene tres listas y un local solo puede estar en una de ellas:
+//   asignados = locales que mentorea · tutoria = donde es tutor · administrados = donde es administrador
+// Al editar una lista, los locales de las otras dos aparecen bloqueados.
 const idsDe = (lista) => new Set((lista || []).map(l => String(l._id || l)));
+const LISTAS_MENTOR = {
+  asignados: { campo: 'localesAsignados', motivo: 'Ya lo mentorea' },
+  tutoria: { campo: 'localesTutoria', motivo: 'Ya es tutor de este local' },
+  administrados: { campo: 'localesAdministrados', motivo: 'Ya es administrador de este local' },
+};
+const motivoBloqueo = (usuario, modo, localId) => {
+  if (!usuario || usuario.rol !== 'mentor') return null;
+  for (const [clave, def] of Object.entries(LISTAS_MENTOR)) {
+    if (clave !== modo && idsDe(usuario[def.campo]).has(String(localId))) return def.motivo;
+  }
+  return null;
+};
 const bloqueadosPara = (usuario, modo) => {
   if (!usuario || usuario.rol !== 'mentor') return new Set();
-  return modo === 'administrados' ? idsDe(usuario.localesAsignados) : idsDe(usuario.localesAdministrados);
+  const ids = new Set();
+  Object.entries(LISTAS_MENTOR).forEach(([clave, def]) => {
+    if (clave !== modo) idsDe(usuario[def.campo]).forEach(id => ids.add(id));
+  });
+  return ids;
+};
+const URL_LISTA = {
+  administrados: (id) => `/compromisos/administrados/${id}`,
+  tutoria: (id) => `/mentorias/asignaciones-tutoria/${id}`,
 };
 
 export default function AsignarLocales() {
@@ -38,6 +61,7 @@ export default function AsignarLocales() {
   const [selectedLocales, setSelectedLocales] = useState([]);
   // 'asignados' = lista de siempre (locales que administra/supervisa; en el mentor, los que mentorea)
   // 'administrados' = solo mentores: locales en que además es administrador
+  // 'tutoria' = solo mentores: locales donde es tutor (Tutorías)
   const [modoDialogo, setModoDialogo] = useState('asignados');
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState({ text: '', type: 'success' });
@@ -68,7 +92,7 @@ export default function AsignarLocales() {
     setSelectedUsuario(usuario);
     setModoDialogo(modo);
     try {
-      const url = modo === 'administrados' ? `/compromisos/administrados/${usuario._id}` : `/usuarios/${usuario._id}/locales`;
+      const url = URL_LISTA[modo] ? URL_LISTA[modo](usuario._id) : `/usuarios/${usuario._id}/locales`;
       const response = await api.get(url);
       const ids = response.data.map(l => l._id || l);
       const bloqueadosAhora = bloqueadosPara(usuario, modo);
@@ -93,7 +117,9 @@ export default function AsignarLocales() {
   const seleccionables = locales.filter(l => !bloqueados.has(String(l._id)));
   const tituloDialogo = modoDialogo === 'administrados'
     ? 'Locales en que es administrador'
-    : (selectedUsuario?.rol === 'mentor' ? 'Locales que mentorea' : 'Asignar Locales');
+    : modoDialogo === 'tutoria'
+      ? 'Locales donde es tutor'
+      : (selectedUsuario?.rol === 'mentor' ? 'Locales que mentorea' : 'Asignar Locales');
 
   const seleccionarTodos = () => {
     if (selectedLocales.length === seleccionables.length) {
@@ -109,6 +135,9 @@ export default function AsignarLocales() {
       if (modoDialogo === 'administrados') {
         await api.put(`/compromisos/administrados/${selectedUsuario._id}`, { localesIds: selectedLocales });
         showMsg(`Locales en que es administrador actualizados para ${selectedUsuario.nombre}`);
+      } else if (modoDialogo === 'tutoria') {
+        await api.put(`/mentorias/asignaciones-tutoria/${selectedUsuario._id}`, { localesIds: selectedLocales });
+        showMsg(`Locales donde es tutor actualizados para ${selectedUsuario.nombre}`);
       } else {
         await api.post(`/usuarios/${selectedUsuario._id}/asignar-locales`, {
           localesIds: selectedLocales,
@@ -230,6 +259,10 @@ export default function AsignarLocales() {
                           )}
                         </Box>
                       )}
+                      {usuario.rol === 'mentor' && (usuario.localesTutoria?.length || 0) > 0 && (
+                        <Chip label={`Tutor en: ${usuario.localesTutoria.length} local${usuario.localesTutoria.length !== 1 ? 'es' : ''}`}
+                          size="small" sx={{ mt: 0.5, mr: 0.5, bgcolor: '#d7f2ee', color: '#00574b', fontWeight: 600 }} />
+                      )}
                       {usuario.rol === 'mentor' && (usuario.localesAdministrados?.length || 0) > 0 && (
                         <Chip label={`Administra: ${usuario.localesAdministrados.length} local${usuario.localesAdministrados.length !== 1 ? 'es' : ''}`}
                           size="small" sx={{ mt: 0.5, bgcolor: '#e8e2fb', color: '#3b1e8a', fontWeight: 600 }} />
@@ -247,6 +280,15 @@ export default function AsignarLocales() {
                               sx={{ borderColor: '#f20000', color: '#f20000' }}
                             >
                               Locales que mentorea
+                            </Button>
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              startIcon={<TutorIcon />}
+                              onClick={() => abrirAsignacion(usuario, 'tutoria')}
+                              sx={{ borderColor: '#00897b', color: '#00897b' }}
+                            >
+                              Locales donde es tutor
                             </Button>
                             <Button
                               variant="outlined"
@@ -335,7 +377,7 @@ export default function AsignarLocales() {
                         )}
                         {bloqueado && (
                           <Typography variant="caption" color="textSecondary" display="block">
-                            {modoDialogo === 'administrados' ? 'Ya lo mentorea' : 'Ya es administrador de este local'}
+                            {motivoBloqueo(selectedUsuario, modoDialogo, local._id)}
                           </Typography>
                         )}
                       </Box>
