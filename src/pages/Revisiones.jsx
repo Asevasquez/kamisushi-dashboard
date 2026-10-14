@@ -489,7 +489,7 @@ export default function Revisiones() {
                           {pdfLoading === revision._id ? <CircularProgress size={16} /> : <PdfIcon fontSize="small" />}
                         </IconButton>
                       </Tooltip>
-                      {revision.esBorrador && !['administrador', 'supervisor'].includes(user?.rol) && (
+                      {revision.esBorrador && !['administrador', 'supervisor', 'mentor'].includes(user?.rol) && (
                         <Tooltip title="Pasar a Finalizada">
                           <IconButton size="small" color="success"
                             onClick={() => handleFinalizarBorrador(revision._id)}
@@ -708,7 +708,7 @@ export default function Revisiones() {
                 <CompromisosDeRevision
                   compromisos={rev.compromisos}
                   esBorrador={rev.esBorrador}
-                  puedeVerSeguimiento={['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno'].includes(user?.rol)}
+                  puedeVerSeguimiento={['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor'].includes(user?.rol)}
                   onVer={(id) => { setDetailDialog({ open: false, revision: null }); navigate(`/compromisos?id=${id}`); }}
                 />
               )}

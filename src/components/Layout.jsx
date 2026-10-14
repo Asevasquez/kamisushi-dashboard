@@ -27,9 +27,10 @@ import { useColorMode } from '../App';
 const DRAWER_WIDTH = 240;
 
 const menuItems = [
-  { path: '/dashboard', label: 'Dashboard', icon: <DashboardIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno'] },
-  { path: '/revisiones', label: 'Revisiones', icon: <AssessmentIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'auditor', 'supervisorinterno'] },
-  { path: '/dashboard-supervision', label: 'Dashboard Supervisión', icon: <BarChartIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno'] },
+  // El mentor ve estas tres secciones solo con los locales que ADMINISTRA (el backend filtra)
+  { path: '/dashboard', label: 'Dashboard', icon: <DashboardIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor'] },
+  { path: '/revisiones', label: 'Revisiones', icon: <AssessmentIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'auditor', 'supervisorinterno', 'mentor'] },
+  { path: '/dashboard-supervision', label: 'Dashboard Supervisión', icon: <BarChartIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor'] },
   { path: '/compromisos', label: 'Compromisos Revisión', icon: <AssignmentTurnedInIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor'] },
   { path: '/auditorias', label: 'Auditoría', icon: <FactCheckIcon />, roles: ['master', 'gerencia', 'auditor'] },
   { path: '/mentorias', label: 'Mentorías', icon: <SchoolIcon />, roles: ['master', 'gerencia', 'mentor'] },

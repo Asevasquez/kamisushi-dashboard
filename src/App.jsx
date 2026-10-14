@@ -30,7 +30,8 @@ function PrivateRoute({ children, allowedRoles }) {
   return children;
 }
 
-// Página de inicio según el rol (el mentor solo trabaja en Mentorías)
+// Página de inicio según el rol. El mentor entra a Mentorías; desde el menú llega además a
+// Dashboard, Revisiones y Dashboard Supervisión, donde ve solo los locales que administra.
 function rutaInicio(rol) {
   if (rol === 'mentor') return '/mentorias';
   return '/dashboard';
@@ -47,9 +48,9 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
         <Route index element={<Inicio />} />
-        <Route path="dashboard" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'auditor']}><Dashboard /></PrivateRoute>} />
-        <Route path="revisiones" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'administrador', 'supervisor', 'auditor', 'supervisorinterno']}><Revisiones /></PrivateRoute>} />
-        <Route path="dashboard-supervision" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno']}><DashboardSupervision /></PrivateRoute>} />
+        <Route path="dashboard" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'auditor', 'mentor']}><Dashboard /></PrivateRoute>} />
+        <Route path="revisiones" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'administrador', 'supervisor', 'auditor', 'supervisorinterno', 'mentor']}><Revisiones /></PrivateRoute>} />
+        <Route path="dashboard-supervision" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor']}><DashboardSupervision /></PrivateRoute>} />
         <Route path="mentorias" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'mentor']}><Mentorias /></PrivateRoute>} />
         <Route path="compromisos-mentoria" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'mentor', 'administrador']}><CompromisosMentoria /></PrivateRoute>} />
         <Route path="compromisos" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor']}><Compromisos /></PrivateRoute>} />

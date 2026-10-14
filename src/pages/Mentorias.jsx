@@ -3,7 +3,7 @@ import {
   Box, Typography, Paper, Grid, TextField, MenuItem, Button,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TablePagination,
   Chip, Dialog, DialogTitle, DialogContent, DialogActions, CircularProgress,
-  IconButton, Tooltip, Tabs, Tab, LinearProgress, Divider, Link,
+  IconButton, Tooltip, Tabs, Tab, LinearProgress, Divider, Link, ToggleButton, ToggleButtonGroup,
 } from '@mui/material';
 import {
   Close as CloseIcon, PictureAsPdf as PdfIcon, Delete as DeleteIcon,
@@ -99,6 +99,11 @@ export default function Mentorias() {
   const [loading, setLoading] = useState(true);
 
   const [cobertura, setCobertura] = useState({ mes: '', mentores: [] });
+  // Mentor: "propias" = las que él evaluó · "administrados" = las que otros mentores hicieron en los locales que administra
+  const esMentor = user?.rol === 'mentor';
+  const [vistaMentor, setVistaMentor] = useState('propias');
+  const [administrados, setAdministrados] = useState([]);
+  const verAdministrados = esMentor && vistaMentor === 'administrados';
   const [detalle, setDetalle] = useState(null);
   const [tab, setTab] = useState(0);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -125,13 +130,20 @@ export default function Mentorias() {
     setLoading(true);
     try {
       const params = paramsFiltro();
-      const [lista, res] = await Promise.all([
-        api.get('/mentorias', { params: { ...params, page: page + 1, limit: rowsPerPage } }),
-        api.get('/mentorias/resumen', { params: { mes: params.mes, localId: params.localId, mentorId: params.mentorId, tipo: params.tipo } }),
-      ]);
-      setMentorias(lista.data.data || []);
-      setTotal(lista.data.total || 0);
-      setResumen(res.data);
+      if (verAdministrados) {
+        // Solo el listado: KPIs y cobertura corresponden a sus propias evaluaciones
+        const lista = await api.get('/mentorias', { params: { ...params, alcance: 'administrados', page: page + 1, limit: rowsPerPage } });
+        setMentorias(lista.data.data || []);
+        setTotal(lista.data.total || 0);
+      } else {
+        const [lista, res] = await Promise.all([
+          api.get('/mentorias', { params: { ...params, page: page + 1, limit: rowsPerPage } }),
+          api.get('/mentorias/resumen', { params: { mes: params.mes, localId: params.localId, mentorId: params.mentorId, tipo: params.tipo } }),
+        ]);
+        setMentorias(lista.data.data || []);
+        setTotal(lista.data.total || 0);
+        setResumen(res.data);
+      }
     } catch (e) {
       console.error('Error cargando mentorías:', e);
     } finally {
@@ -151,11 +163,12 @@ export default function Mentorias() {
           pendientes: lista.filter((l) => !l.realizadaEnMes).map((l) => ({ _id: l._id, nombre: l.nombre })),
         });
         setCobertura({ mes: data.mes, mentores: [{ mentorId: user?.id || user?._id, nombre: user?.nombre, mentoria: aFila(data.mentoria || []), tutoria: aFila(data.tutoria || []) }] });
+        setAdministrados(data.administrados || []);
       }
     } catch (e) {
       setCobertura({ mes: '', mentores: [] });
     }
-  }, [paramsFiltro, page, rowsPerPage, esGlobal, user]);
+  }, [paramsFiltro, page, rowsPerPage, esGlobal, user, verAdministrados]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -219,7 +232,25 @@ export default function Mentorias() {
       <Typography variant="h5" fontWeight={500}>Mentorías y Tutorías</Typography>
       <Typography variant="caption" color="text.secondary">Evaluación de administradores y seguimiento de compromisos</Typography>
 
+      {esMentor && administrados.length > 0 && (
+        <Box sx={{ mt: 2 }}>
+          <ToggleButtonGroup exclusive size="small" color="primary" value={vistaMentor}
+            onChange={(_, v) => { if (!v) return; setVistaMentor(v); setPage(0); setFilters((f) => ({ ...f, localId: '', estado: '' })); }}>
+            <ToggleButton value="propias" sx={{ px: 2.5, fontWeight: 700 }}>Mis evaluaciones</ToggleButton>
+            <ToggleButton value="administrados" sx={{ px: 2.5, fontWeight: 700 }}>
+              Locales que administro ({administrados.length})
+            </ToggleButton>
+          </ToggleButtonGroup>
+          {verAdministrados && (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              Mentorías y tutorías que otros mentores hicieron en tus locales. Responde sus compromisos en Compromisos Mentoría.
+            </Typography>
+          )}
+        </Box>
+      )}
+
       {/* ─── KPIs ─── */}
+      {!verAdministrados && (
       <Grid container spacing={2} sx={{ my: 2, width: '100%' }}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <KpiCard label="Mentorías finalizadas" value={resumen?.totalMentorias ?? '—'} color="#1976d2" />
@@ -236,6 +267,8 @@ export default function Mentorias() {
         </Grid>
       </Grid>
 
+      )}
+
       {/* ─── Filtros ─── */}
       <Paper sx={{ p: 2, mb: 2, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', borderRadius: 3, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
         <TextField type="month" size="small" label="Mes" value={filters.mes}
@@ -244,7 +277,7 @@ export default function Mentorias() {
         <TextField select size="small" label="Local" value={filters.localId}
           onChange={(e) => { setPage(0); setFilters({ ...filters, localId: e.target.value }); }} sx={{ width: 180 }}>
           <MenuItem value="">Todos</MenuItem>
-          {locales.map((l) => <MenuItem key={l._id} value={l._id}>{l.nombre}</MenuItem>)}
+          {(verAdministrados ? administrados : locales).map((l) => <MenuItem key={l._id} value={l._id}>{l.nombre}</MenuItem>)}
         </TextField>
         {esGlobal && mentores.length > 0 && (
           <TextField select size="small" label="Mentor" value={filters.mentorId}
@@ -274,7 +307,7 @@ export default function Mentorias() {
       </Paper>
 
       {/* ─── Cobertura del mes ─── */}
-      {filasCobertura.length > 0 && (
+      {!verAdministrados && filasCobertura.length > 0 && (
         <Paper sx={{ p: 2.5, mb: 2, borderRadius: 3, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
           <Typography variant="subtitle1" fontWeight={700}>Cobertura del mes{mesCob ? ` · ${mesCob}/${anioCob}` : ''}</Typography>
           <Typography variant="caption" color="text.secondary">
@@ -319,6 +352,7 @@ export default function Mentorias() {
       )}
 
       {/* ─── Puntaje por pregunta + por vencer ─── */}
+      {!verAdministrados && (
       <Grid container spacing={2} sx={{ mb: 2, width: '100%' }}>
         <Grid size={{ xs: 12, md: 7 }}>
           <Paper sx={{ p: 2.5, borderRadius: 3, height: '100%', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
@@ -363,6 +397,8 @@ export default function Mentorias() {
           </Paper>
         </Grid>
       </Grid>
+
+      )}
 
       {/* ─── Tabla ─── */}
       <Paper sx={{ borderRadius: 3, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>

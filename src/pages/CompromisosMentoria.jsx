@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Typography, Paper, Tabs, Tab, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, CircularProgress, IconButton, Tooltip, TextField, MenuItem,
+  TableHead, TableRow, CircularProgress, IconButton, Tooltip, TextField, MenuItem, Chip,
 } from '@mui/material';
 import { Visibility as VisibilityIcon, PictureAsPdf as PdfIcon } from '@mui/icons-material';
 import api from '../services/api';
@@ -52,12 +52,12 @@ export default function CompromisosMentoria() {
 
   const subtitulo = {
     administrador: 'Compromisos de tus locales: envía la evidencia de cada uno antes de su fecha límite.',
-    mentor: 'Compromisos de tus mentorías: revisa la evidencia y aprueba o pide corrección.',
+    mentor: 'Tus mentorías y tutorías: revisa la evidencia y marca tus tareas. En los locales que administras: envía la evidencia.',
   }[rol] || 'Seguimiento de todos los compromisos generados en mentorías.';
 
   const pdf = async (c) => {
     try {
-      await descargarPdfMentoria(c.mentoriaId, `Mentoria_${c.localNombre}_${c.numeroInforme || c.mentoriaId}.pdf`);
+      await descargarPdfMentoria(c.mentoriaId, `${c.tipo === 'tutoria' ? 'Tutoria' : 'Mentoria'}_${c.localNombre}_${c.numeroInforme || c.mentoriaId}.pdf`);
     } catch (e) {
       alert('No se pudo generar el PDF');
     }
@@ -94,6 +94,7 @@ export default function CompromisosMentoria() {
                   <TableCell>Responsable</TableCell>
                   <TableCell>Fecha límite</TableCell>
                   <TableCell>Mentor</TableCell>
+                  {rol === 'mentor' && <TableCell>Tu rol</TableCell>}
                   <TableCell>Estado</TableCell>
                   <TableCell align="center">Acciones</TableCell>
                 </TableRow>
@@ -107,6 +108,13 @@ export default function CompromisosMentoria() {
                     <TableCell>{c.responsable}</TableCell>
                     <TableCell sx={{ color: c.vencido ? '#c62828' : 'inherit', fontWeight: c.vencido ? 700 : 400 }}>{fmtFecha(c.fechaCompromiso)}</TableCell>
                     <TableCell>{c.mentorNombre}</TableCell>
+                    {rol === 'mentor' && (
+                      <TableCell>
+                        <Chip size="small" variant="outlined"
+                          label={c.miRol === 'administrador' ? 'Administrador' : c.tipo === 'tutoria' ? 'Tutor' : 'Mentor'}
+                          sx={{ fontWeight: 700, borderColor: c.miRol === 'administrador' ? '#f59e0b' : '#6d4c41', color: c.miRol === 'administrador' ? '#b45309' : '#6d4c41' }} />
+                      </TableCell>
+                    )}
                     <TableCell><ChipEstadoCompromiso estado={c.estado} vencido={c.vencido} /></TableCell>
                     <TableCell align="center" sx={{ whiteSpace: 'nowrap' }} onClick={(e) => e.stopPropagation()}>
                       <Tooltip title="Ver compromiso">
@@ -119,7 +127,7 @@ export default function CompromisosMentoria() {
                   </TableRow>
                 ))}
                 {lista.length === 0 && (
-                  <TableRow><TableCell colSpan={8} align="center" sx={{ py: 4, color: 'text.secondary' }}>No hay compromisos en esta pestaña.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={rol === 'mentor' ? 9 : 8} align="center" sx={{ py: 4, color: 'text.secondary' }}>No hay compromisos en esta pestaña.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>

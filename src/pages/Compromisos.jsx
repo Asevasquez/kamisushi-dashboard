@@ -529,7 +529,7 @@ function Seguimiento({ esAdmin, esMentor, localInicial, idAbrir, onCerrarDetalle
         <ToggleButtonGroup exclusive value={alcance} onChange={(_, v) => cambiarAlcance(v)} sx={{ mb: 2 }} aria-label="Alcance">
           <ToggleButton value="propios" sx={{ px: 3, fontWeight: 700 }}>Mis locales</ToggleButton>
           <ToggleButton value="mentoria" sx={{ px: 3, fontWeight: 700 }}>
-            Mentoría{mentoria ? ` (${mentoria.totalLocales} local${mentoria.totalLocales !== 1 ? 'es' : ''})` : ''}
+            Mentoría y tutoría{mentoria ? ` (${mentoria.totalLocales} local${mentoria.totalLocales !== 1 ? 'es' : ''})` : ''}
           </ToggleButton>
         </ToggleButtonGroup>
       )}
@@ -541,7 +541,7 @@ function Seguimiento({ esAdmin, esMentor, localInicial, idAbrir, onCerrarDetalle
         {kpis.map((k) => <KpiCard key={k.label} {...k} />)}
         {esAdmin && (
           <KpiCard label="CUMPLIMIENTO A TIEMPO" value={fmtPct(resumenActual?.pctATiempo)} color={colorBarra(resumenActual?.pctATiempo)}
-            sub={`${alcance === 'mentoria' ? 'Locales que mentoreas' : 'Tus locales'} · ${resumenActual?.evaluacion || 'Sin datos'}`}>
+            sub={`${alcance === 'mentoria' ? 'Locales que mentoreas o tutoreas' : 'Tus locales'} · ${resumenActual?.evaluacion || 'Sin datos'}`}>
             <Box mt={1}><BarraPct pct={resumenActual?.pctATiempo} /></Box>
           </KpiCard>
         )}
@@ -662,7 +662,7 @@ function Seguimiento({ esAdmin, esMentor, localInicial, idAbrir, onCerrarDetalle
       {tieneMentoria && alcance === 'propios' && (
         <Box mt={4}>
           <Box display="flex" flexWrap="wrap" alignItems="baseline" justifyContent="space-between" gap={1}>
-            <Typography variant="h6" fontWeight={500}>Locales que mentoreas</Typography>
+            <Typography variant="h6" fontWeight={500}>Locales que mentoreas o donde eres tutor</Typography>
             <Typography variant="caption" color="text.secondary">Solo lectura: la evidencia la sube el administrador de cada local.</Typography>
           </Box>
           <Box sx={{ mt: 1.5, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 2 }}>
@@ -1097,7 +1097,7 @@ export default function Compromisos() {
           <Typography variant="h5" fontWeight={500}>Compromisos</Typography>
           <Typography variant="caption" color="text.secondary">
             {esMentor
-              ? 'Los de los locales que administras y el seguimiento de los que mentoreas'
+              ? 'Los de los locales que administras y el seguimiento de los que mentoreas o tutoreas'
               : esAdmin
                 ? 'Los compromisos de tus locales: sube la evidencia antes de la fecha límite'
                 : 'Seguimiento de los compromisos acordados en las revisiones'}
