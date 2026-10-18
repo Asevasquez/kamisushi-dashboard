@@ -63,7 +63,7 @@ const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'S
 const nombreMes = (yyyymm) => MESES_CORTOS[Number(String(yyyymm).slice(5, 7)) - 1] || yyyymm;
 
 // Colores que se leen bien tanto en modo claro como oscuro.
-function useTono() {
+export function useTono() {
   const theme = useTheme();
   const dark = theme.palette.mode === 'dark';
   return {
@@ -106,7 +106,7 @@ async function descargarWorkbook(workbook, nombreArchivo) {
 }
 
 // ─── Piezas visuales ────────────────────────────────────────────────────────
-function EstadoChip({ estado }) {
+export function EstadoChip({ estado }) {
   const { tono, fondo } = useTono();
   const e = ESTADOS[estado] || ESTADOS.abierto;
   return (
@@ -132,12 +132,21 @@ function BarraPct({ pct, ancho = 90 }) {
   );
 }
 
-function KpiCard({ label, value, sub, color, children }) {
-  const { tono } = useTono();
+// pct (opcional): porcentaje del total, se muestra junto al número con una barra
+export function KpiCard({ label, value, sub, color, pct, children }) {
+  const { tono, fondo } = useTono();
   return (
     <Paper sx={{ p: 2.5, borderRadius: 3, height: '100%', borderBottom: `3px solid ${color}`, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
       <Typography sx={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.5, color: 'text.secondary' }}>{label}</Typography>
-      <Typography sx={{ mt: 0.5, fontSize: 32, fontWeight: 800, color: tono(color), lineHeight: 1.15 }}>{value}</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, mt: 0.5 }}>
+        <Typography sx={{ fontSize: 32, fontWeight: 800, color: tono(color), lineHeight: 1.15 }}>{value}</Typography>
+        {pct != null && <Typography sx={{ fontSize: 16, fontWeight: 700, color: tono(color) }}>{String(pct).replace('.', ',')}%</Typography>}
+      </Box>
+      {pct != null && (
+        <Box sx={{ height: 6, borderRadius: 3, bgcolor: fondo(color), overflow: 'hidden', my: 0.75 }}>
+          <Box sx={{ height: '100%', width: `${Math.min(pct, 100)}%`, bgcolor: tono(color), borderRadius: 3 }} />
+        </Box>
+      )}
       {sub && <Typography sx={{ fontSize: 12.5, color: 'text.secondary', lineHeight: 1.4 }}>{sub}</Typography>}
       {children}
     </Paper>
@@ -156,7 +165,7 @@ const ACCION = {
   aprobado: { label: 'Aprobado y cerrado', color: '#1b6b28' },
 };
 
-function DetalleDialog({ id, onClose, onChanged, onEliminar, notificar }) {
+export function DetalleDialog({ id, onClose, onChanged, onEliminar, notificar }) {
   const { tono, fondo } = useTono();
   const [c, setC] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -400,7 +409,7 @@ function DetalleDialog({ id, onClose, onChanged, onEliminar, notificar }) {
                 </Box>
               </Paper>
             )}
-            {c.puedeEliminar && (
+            {c.puedeEliminar && onEliminar && (
               <Box display="flex" justifyContent="flex-start" mt={2}>
                 <Button color="error" startIcon={<DeleteIcon />} onClick={() => onEliminar(c)} sx={{ fontWeight: 700 }}>
                   Eliminar compromiso
@@ -503,22 +512,25 @@ function Seguimiento({ esAdmin, esMentor, localInicial, idAbrir, onCerrarDetalle
   const limpiar = () => { setFiltros({ localId: '', seccion: '', supervisorId: '', mes: '' }); setEstado('todos'); setPage(0); };
 
   const cn = resp.conteos;
+  // % de cada estado sobre el total de compromisos del filtro actual
+  const totalCn = (cn.abierto || 0) + (cn.vencido || 0) + (cn.en_revision || 0) + (cn.cerrado || 0);
+  const pctDe = (n) => (totalCn ? Math.round(((n || 0) / totalCn) * 1000) / 10 : 0);
   const resumenActual = resumenes[alcance];
   const mentoria = resumenes.mentoria;
   const tieneMentoria = esMentor && (mentoria?.totales?.asumidos || 0) > 0;
 
   const kpis = esAdmin
     ? [
-      { label: 'POR ENTREGAR', value: cn.abierto + cn.vencido, color: cn.vencido > 0 ? '#a40000' : '#0a4a8a',
+      { label: 'POR ENTREGAR', value: cn.abierto + cn.vencido, pct: pctDe(cn.abierto + cn.vencido), color: cn.vencido > 0 ? '#a40000' : '#0a4a8a',
         sub: `${cn.vencido > 0 ? `${cn.vencido} vencido${cn.vencido > 1 ? 's' : ''} · ` : ''}sube la evidencia antes de la fecha límite` },
-      { label: 'EN REVISIÓN', value: cn.en_revision, color: '#8a5200', sub: 'esperan la validación de la supervisora' },
-      { label: 'CERRADOS', value: cn.cerrado, color: '#1b6b28', sub: 'compromisos cumplidos' },
+      { label: 'EN REVISIÓN', value: cn.en_revision, pct: pctDe(cn.en_revision), color: '#8a5200', sub: 'esperan la validación de la supervisora' },
+      { label: 'CERRADOS', value: cn.cerrado, pct: pctDe(cn.cerrado), color: '#1b6b28', sub: 'compromisos cumplidos' },
     ]
     : [
-      { label: 'ABIERTOS', value: cn.abierto, color: '#0a4a8a', sub: 'dentro de plazo' },
-      { label: 'EN REVISIÓN', value: cn.en_revision, color: '#8a5200', sub: 'esperan validación' },
-      { label: 'VENCIDOS', value: cn.vencido, color: '#a40000', sub: 'sin evidencia a la fecha' },
-      { label: 'CERRADOS', value: cn.cerrado, color: '#1b6b28', sub: 'compromisos cumplidos' },
+      { label: 'ABIERTOS', value: cn.abierto, pct: pctDe(cn.abierto), color: '#0a4a8a', sub: 'dentro de plazo' },
+      { label: 'EN REVISIÓN', value: cn.en_revision, pct: pctDe(cn.en_revision), color: '#8a5200', sub: 'esperan validación' },
+      { label: 'VENCIDOS', value: cn.vencido, pct: pctDe(cn.vencido), color: '#a40000', sub: 'sin evidencia a la fecha' },
+      { label: 'CERRADOS', value: cn.cerrado, pct: pctDe(cn.cerrado), color: '#1b6b28', sub: 'compromisos cumplidos' },
     ];
 
   const hayFiltros = Object.values(filtros).some(Boolean) || estado !== 'todos';

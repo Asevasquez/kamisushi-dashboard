@@ -16,6 +16,7 @@ import Auditorias from './pages/Auditorias';
 import Mentorias from './pages/Mentorias';
 import CompromisosMentoria from './pages/CompromisosMentoria';
 import Compromisos from './pages/Compromisos';
+import TodosCompromisos from './pages/TodosCompromisos';
 import Layout from './components/Layout';
 
 // Contexto global del modo oscuro
@@ -53,6 +54,7 @@ function AppRoutes() {
         <Route path="dashboard-supervision" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor']}><DashboardSupervision /></PrivateRoute>} />
         <Route path="mentorias" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'mentor']}><Mentorias /></PrivateRoute>} />
         <Route path="compromisos-mentoria" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'mentor', 'administrador']}><CompromisosMentoria /></PrivateRoute>} />
+        <Route path="todos-compromisos" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor']}><TodosCompromisos /></PrivateRoute>} />
         <Route path="compromisos" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor']}><Compromisos /></PrivateRoute>} />
         <Route path="auditorias" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'auditor']}><Auditorias /></PrivateRoute>} />
         <Route path="usuarios" element={<PrivateRoute allowedRoles={['master']}><Usuarios /></PrivateRoute>} />

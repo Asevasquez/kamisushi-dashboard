@@ -19,6 +19,7 @@ import {
   School as SchoolIcon,
   TaskAlt as TaskAltIcon,
   AssignmentTurnedIn as AssignmentTurnedInIcon,
+  PlaylistAddCheck as TodosCompromisosIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -31,6 +32,7 @@ const menuItems = [
   { path: '/dashboard', label: 'Dashboard', icon: <DashboardIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor'] },
   { path: '/revisiones', label: 'Revisiones', icon: <AssessmentIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'auditor', 'supervisorinterno', 'mentor'] },
   { path: '/dashboard-supervision', label: 'Dashboard Supervisión', icon: <BarChartIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor'] },
+  { path: '/todos-compromisos', label: 'Todos los compromisos', icon: <TodosCompromisosIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor'] },
   { path: '/compromisos', label: 'Compromisos Revisión', icon: <AssignmentTurnedInIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor'] },
   { path: '/auditorias', label: 'Auditoría', icon: <FactCheckIcon />, roles: ['master', 'gerencia', 'auditor'] },
   { path: '/mentorias', label: 'Mentorías', icon: <SchoolIcon />, roles: ['master', 'gerencia', 'mentor'] },
