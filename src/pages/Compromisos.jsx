@@ -28,6 +28,7 @@ const getImageUrl = (url) => {
 const SECCIONES = [
   { key: 'servicioCliente', label: 'Servicio al Cliente' },
   { key: 'cocina', label: 'Cocina' },
+  { key: 'general', label: 'Generales' },
 ];
 const labelSeccion = (k) => SECCIONES.find((s) => s.key === k)?.label || k;
 

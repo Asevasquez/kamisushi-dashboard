@@ -193,9 +193,11 @@ function SeccionDetalle({ titulo, respuestas, color, isDark = false }) {
 }
 
 // ─── Compromisos de la revisión (pestaña del detalle) ────────────────────────
+// "max" = cupo de cada sección (3, 3 y 5): se muestra como "2/5" junto al nombre
 const SECCIONES_COMP = [
-  { key: 'servicioCliente', label: 'Servicio al Cliente' },
-  { key: 'cocina', label: 'Cocina' },
+  { key: 'servicioCliente', label: 'Servicio al Cliente', max: 3 },
+  { key: 'cocina', label: 'Cocina', max: 3 },
+  { key: 'general', label: 'Generales', max: 5 },
 ];
 const ESTADO_COMP = {
   abierto: { label: 'Abierto', color: '#0a4a8a' },
@@ -248,7 +250,7 @@ function CompromisosDeRevision({ compromisos, esBorrador, puedeVerSeguimiento, o
         return (
           <Box key={sec.key} mb={2.5}>
             <Typography sx={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.5, color: 'text.secondary', mb: 1 }}>
-              {sec.label.toUpperCase()} · {items.length}/3
+              {sec.label.toUpperCase()} · {items.length}/{sec.max}
             </Typography>
             <Box display="flex" flexDirection="column" gap={1}>
               {items.map((c, i) => {
@@ -279,6 +281,68 @@ function CompromisosDeRevision({ compromisos, esBorrador, puedeVerSeguimiento, o
         Las evidencias y el historial completo están en la página Compromisos Revisión.
       </Typography>
     </Box>
+  );
+}
+
+// ─── Hora de inicio y fin de la revisión ────────────────────────────────────
+// Una revisión no debería durar más de 12 h. Si pasa (o el fin quedó antes del inicio),
+// lo normal es que sea un dato anterior a la corrección de inicio/fin (se pisaba al editar
+// o al retomar un borrador): se muestra marcado para revisar, no como un dato confiable.
+const MAX_DURACION_FIABLE_MIN = 12 * 60;
+function analizarDuracion(geo) {
+  const i = geo?.inicio?.timestamp;
+  const f = geo?.fin?.timestamp;
+  if (!i || !f) return null;
+  const min = Math.round((new Date(f) - new Date(i)) / 60000);
+  if (isNaN(min)) return null;
+  const abs = Math.abs(min);
+  return { minutos: min, texto: `${Math.floor(abs / 60)}h ${abs % 60}m`, negativa: min < 0, larga: min > MAX_DURACION_FIABLE_MIN };
+}
+// Días de calendario entre el inicio y el fin (0 = mismo día), para no confundir "09:20" de otro día.
+function diasEntreMarcas(geo) {
+  const i = geo?.inicio?.timestamp;
+  const f = geo?.fin?.timestamp;
+  if (!i || !f) return 0;
+  const a = new Date(i); a.setHours(0, 0, 0, 0);
+  const b = new Date(f); b.setHours(0, 0, 0, 0);
+  return Math.round((b - a) / 86400000);
+}
+const fmtMarca = (ts) => (ts
+  ? new Date(ts).toLocaleString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  : '—');
+
+function TarjetaMarca({ titulo, icono, colorBorde, fondoIcono, punto }) {
+  return (
+    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderTop: `3px solid ${colorBorde}` }}>
+      <Box display="flex" alignItems="center" gap={1} mb={1.5}>
+        <Box sx={{ width: 28, height: 28, borderRadius: '50%', bgcolor: fondoIcono, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Typography fontSize={14}>{icono}</Typography>
+        </Box>
+        <Box>
+          <Typography variant="caption" color="textSecondary">{titulo}</Typography>
+          <Typography variant="body2" fontWeight={600}>{fmtMarca(punto.timestamp)}</Typography>
+        </Box>
+      </Box>
+      {punto.latitude ? (
+        <>
+          <Typography variant="caption" color="textSecondary" display="block">Coordenadas</Typography>
+          <Typography variant="body2" fontWeight={500} sx={{ fontFamily: 'monospace' }}>
+            {Number(punto.latitude).toFixed(6)}, {Number(punto.longitude).toFixed(6)}
+          </Typography>
+          {punto.accuracy && (
+            <Typography variant="caption" color="textSecondary" display="block" mt={0.5}>
+              Precisión: ±{Math.round(punto.accuracy)}m
+            </Typography>
+          )}
+          <Button size="small" variant="outlined" sx={{ mt: 1.5, fontSize: 11 }}
+            href={`https://www.google.com/maps?q=${punto.latitude},${punto.longitude}`} target="_blank">
+            Ver en Google Maps
+          </Button>
+        </>
+      ) : (
+        <Typography variant="caption" color="textSecondary">Sin ubicación: el celular no entregó coordenadas, solo la hora.</Typography>
+      )}
+    </Paper>
   );
 }
 
@@ -489,7 +553,7 @@ export default function Revisiones() {
                           {pdfLoading === revision._id ? <CircularProgress size={16} /> : <PdfIcon fontSize="small" />}
                         </IconButton>
                       </Tooltip>
-                      {revision.esBorrador && !['administrador', 'supervisor', 'mentor'].includes(user?.rol) && (
+                      {revision.esBorrador && !['administrador', 'supervisor'].includes(user?.rol) && (
                         <Tooltip title="Pasar a Finalizada">
                           <IconButton size="small" color="success"
                             onClick={() => handleFinalizarBorrador(revision._id)}
@@ -708,7 +772,7 @@ export default function Revisiones() {
                 <CompromisosDeRevision
                   compromisos={rev.compromisos}
                   esBorrador={rev.esBorrador}
-                  puedeVerSeguimiento={['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor'].includes(user?.rol)}
+                  puedeVerSeguimiento={['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno'].includes(user?.rol)}
                   onVer={(id) => { setDetailDialog({ open: false, revision: null }); navigate(`/compromisos?id=${id}`); }}
                 />
               )}
@@ -716,7 +780,7 @@ export default function Revisiones() {
               {/* TAB 5: Ubicación — solo master/gerencia */}
               {tabDetalle === 5 && ['master', 'gerencia'].includes(user?.rol) && (
                 <Box>
-                  {(!rev?.geolocalizacion?.inicio?.latitude && !rev?.geolocalizacion?.fin?.latitude) ? (
+                  {!(rev?.geolocalizacion?.inicio?.latitude || rev?.geolocalizacion?.inicio?.timestamp || rev?.geolocalizacion?.fin?.latitude || rev?.geolocalizacion?.fin?.timestamp) ? (
                     <Box textAlign="center" py={4}>
                       <Typography color="textSecondary">Sin datos de geolocalización para esta revisión</Typography>
                       <Typography variant="caption" color="textSecondary" display="block" mt={1}>
@@ -726,95 +790,42 @@ export default function Revisiones() {
                   ) : (
                     <Grid container spacing={2}>
                       {/* Inicio */}
-                      {rev?.geolocalizacion?.inicio?.latitude && (
+                      {(rev?.geolocalizacion?.inicio?.latitude || rev?.geolocalizacion?.inicio?.timestamp) && (
                         <Grid item xs={12} sm={6}>
-                          <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderTop: '3px solid #4caf50' }}>
-                            <Box display="flex" alignItems="center" gap={1} mb={1.5}>
-                              <Box sx={{ width: 28, height: 28, borderRadius: '50%', bgcolor: '#e8f5e9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <Typography fontSize={14}>📍</Typography>
-                              </Box>
-                              <Box>
-                                <Typography variant="caption" color="textSecondary">Inicio de revisión</Typography>
-                                <Typography variant="body2" fontWeight={600}>
-                                  {rev.geolocalizacion.inicio.timestamp
-                                    ? new Date(rev.geolocalizacion.inicio.timestamp).toLocaleTimeString('es-CL')
-                                    : '—'}
-                                </Typography>
-                              </Box>
-                            </Box>
-                            <Typography variant="caption" color="textSecondary" display="block">Coordenadas</Typography>
-                            <Typography variant="body2" fontWeight={500} sx={{ fontFamily: 'monospace' }}>
-                              {rev.geolocalizacion.inicio.latitude?.toFixed(6)}, {rev.geolocalizacion.inicio.longitude?.toFixed(6)}
-                            </Typography>
-                            {rev.geolocalizacion.inicio.accuracy && (
-                              <Typography variant="caption" color="textSecondary" display="block" mt={0.5}>
-                                Precisión: ±{Math.round(rev.geolocalizacion.inicio.accuracy)}m
-                              </Typography>
-                            )}
-                            <Button
-                              size="small" variant="outlined" sx={{ mt: 1.5, fontSize: 11 }}
-                              href={`https://www.google.com/maps?q=${rev.geolocalizacion.inicio.latitude},${rev.geolocalizacion.inicio.longitude}`}
-                              target="_blank"
-                            >
-                              Ver en Google Maps
-                            </Button>
-                          </Paper>
+                          <TarjetaMarca titulo="Inicio de revisión" icono="📍" colorBorde="#4caf50" fondoIcono="#e8f5e9" punto={rev.geolocalizacion.inicio} />
                         </Grid>
                       )}
 
                       {/* Fin */}
-                      {rev?.geolocalizacion?.fin?.latitude && (
+                      {(rev?.geolocalizacion?.fin?.latitude || rev?.geolocalizacion?.fin?.timestamp) && (
                         <Grid item xs={12} sm={6}>
-                          <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderTop: '3px solid #e65100' }}>
-                            <Box display="flex" alignItems="center" gap={1} mb={1.5}>
-                              <Box sx={{ width: 28, height: 28, borderRadius: '50%', bgcolor: '#fff3e0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <Typography fontSize={14}>🏁</Typography>
-                              </Box>
-                              <Box>
-                                <Typography variant="caption" color="textSecondary">Fin de revisión</Typography>
-                                <Typography variant="body2" fontWeight={600}>
-                                  {rev.geolocalizacion.fin.timestamp
-                                    ? new Date(rev.geolocalizacion.fin.timestamp).toLocaleTimeString('es-CL')
-                                    : '—'}
-                                </Typography>
-                              </Box>
-                            </Box>
-                            <Typography variant="caption" color="textSecondary" display="block">Coordenadas</Typography>
-                            <Typography variant="body2" fontWeight={500} sx={{ fontFamily: 'monospace' }}>
-                              {rev.geolocalizacion.fin.latitude?.toFixed(6)}, {rev.geolocalizacion.fin.longitude?.toFixed(6)}
-                            </Typography>
-                            {rev.geolocalizacion.fin.accuracy && (
-                              <Typography variant="caption" color="textSecondary" display="block" mt={0.5}>
-                                Precisión: ±{Math.round(rev.geolocalizacion.fin.accuracy)}m
-                              </Typography>
-                            )}
-                            <Button
-                              size="small" variant="outlined" sx={{ mt: 1.5, fontSize: 11 }}
-                              href={`https://www.google.com/maps?q=${rev.geolocalizacion.fin.latitude},${rev.geolocalizacion.fin.longitude}`}
-                              target="_blank"
-                            >
-                              Ver en Google Maps
-                            </Button>
-                          </Paper>
+                          <TarjetaMarca titulo="Fin de revisión" icono="🏁" colorBorde="#e65100" fondoIcono="#fff3e0" punto={rev.geolocalizacion.fin} />
                         </Grid>
                       )}
 
                       {/* Duración */}
-                      {rev?.geolocalizacion?.inicio?.timestamp && rev?.geolocalizacion?.fin?.timestamp && (
-                        <Grid item xs={12} sm={6}>
-                          <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                            <Typography variant="caption" color="textSecondary">Duración total</Typography>
-                            <Typography variant="h5" fontWeight={600} mt={0.5}>
-                              {(() => {
-                                const diff = new Date(rev.geolocalizacion.fin.timestamp) - new Date(rev.geolocalizacion.inicio.timestamp);
-                                const h = Math.floor(diff / 3600000);
-                                const m = Math.floor((diff % 3600000) / 60000);
-                                return `${h}h ${m}m`;
-                              })()}
-                            </Typography>
-                          </Paper>
-                        </Grid>
-                      )}
+                      {(() => {
+                        const dur = analizarDuracion(rev?.geolocalizacion);
+                        if (!dur) return null;
+                        return (
+                          <Grid item xs={12} sm={6}>
+                            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                              <Typography variant="caption" color="textSecondary">Duración total</Typography>
+                              <Typography variant="h5" fontWeight={600} mt={0.5}>{dur.negativa ? '—' : dur.texto}</Typography>
+                              {dur.negativa && (
+                                <Typography variant="caption" color="error" display="block">
+                                  Horas inconsistentes: el fin quedó antes del inicio.
+                                </Typography>
+                              )}
+                              {dur.larga && (
+                                <Typography variant="caption" color="warning.main" display="block">
+                                  Más de 12 h: el borrador se retomó otro día o la revisión se editó antes de la corrección de inicio/fin. No es un tiempo de trabajo confiable.
+                                </Typography>
+                              )}
+                            </Paper>
+                          </Grid>
+                        );
+                      })()}
 
                       {/* Auditoría */}
                       <Grid item xs={12} sm={6}>
