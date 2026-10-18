@@ -102,6 +102,7 @@ function desdeMentoria(c) {
     fecha,
     dias: diasHasta(fecha),
     estado: c.estado === 'abierto' && c.vencido ? 'vencido' : c.estado,
+    soloLectura: c.miRol === 'supervisor', // el supervisor los ve, pero no actúa sobre ellos
     original: c,
   };
 }
@@ -244,7 +245,7 @@ export default function TodosCompromisos() {
   const subtitulo = {
     administrador: 'Todos los compromisos de tus locales, de supervisión y de mentoría, en un solo lugar.',
     mentor: 'Tus locales como administrador, mentor y tutor: compromisos de supervisión y de mentoría juntos.',
-    supervisor: 'Compromisos de supervisión de tus locales.',
+    supervisor: 'Compromisos de supervisión de tus locales y, en solo lectura, los de mentoría y tutoría.',
     supervisorinterno: 'Compromisos de supervisión de tus locales.',
   }[rol] || 'Compromisos de supervisión y de mentoría de todos los locales.';
 
