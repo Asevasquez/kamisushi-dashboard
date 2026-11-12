@@ -15,7 +15,7 @@ import {
 } from '@mui/material';
 import {
   Refresh as RefreshIcon, RestartAlt as RestartAltIcon, Download as DownloadIcon, Visibility as VisibilityIcon,
-  DeleteOutline as DeleteIcon, ExpandMore as ExpandMoreIcon, Close as CloseIcon,
+  DeleteOutlined as DeleteIcon, ExpandMore as ExpandMoreIcon, Close as CloseIcon,
 } from '@mui/icons-material';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, LineChart, Line,

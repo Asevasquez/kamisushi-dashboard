@@ -2,13 +2,13 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box, Typography, Paper, Tabs, Tab, Table, TableBody, TableCell, TableContainer, TableHead,
   TableRow, TablePagination, CircularProgress, Chip, TextField, MenuItem, InputAdornment,
-  ToggleButton, ToggleButtonGroup, Snackbar, Alert, Tooltip, Button,
+  ToggleButton, ToggleButtonGroup, Snackbar, Alert, Tooltip, Button, IconButton,
 } from '@mui/material';
-import { Search as SearchIcon, Refresh as RefreshIcon } from '@mui/icons-material';
+import { Search as SearchIcon, Refresh as RefreshIcon, PictureAsPdf as PdfIcon } from '@mui/icons-material';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { KpiCard, EstadoChip, DetalleDialog, useTono } from './Compromisos';
-import CompromisoMentoriaDialog from '../components/CompromisoMentoriaDialog';
+import CompromisoMentoriaDialog, { descargarPdfMentoria } from '../components/CompromisoMentoriaDialog';
 
 // ────────────────────────────────────────────────────────────
 // Todos los compromisos: Supervisión (compromisos de revisión) + Mentoría y Tutoría
@@ -135,6 +135,16 @@ export default function TodosCompromisos() {
   const [snack, setSnack] = useState({ open: false, msg: '', sev: 'success' });
   const notificar = (msg, sev = 'success') => setSnack({ open: true, msg, sev });
 
+  // Informe de la mentoría / tutoría en PDF (esta acción vivía solo en "Compromisos Mentoría")
+  const descargarInforme = async (i) => {
+    const c = i.original;
+    try {
+      await descargarPdfMentoria(c.mentoriaId, `${c.tipo === 'tutoria' ? 'Tutoria' : 'Mentoria'}_${c.localNombre}_${c.numeroInforme || c.mentoriaId}.pdf`);
+    } catch (e) {
+      notificar('No se pudo generar el PDF', 'error');
+    }
+  };
+
   useEffect(() => {
     api.get('/locales/activos').then((r) => setLocales(r.data || [])).catch(() => setLocales([]));
   }, []);
@@ -236,6 +246,8 @@ export default function TodosCompromisos() {
   }, [pestana, origen, busqueda, revision.items, mentoria.items]);
 
   const visibles = lista.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  // La columna "Informe" (PDF) solo aparece si hay filas de mentoría o tutoría en pantalla
+  const hayInformes = visibles.some((i) => i.origen === 'mentoria' || i.origen === 'tutoria');
 
   const abrir = (i) => {
     if (i.origen === 'revision') setDetRevision(i.id);
@@ -323,6 +335,7 @@ export default function TodosCompromisos() {
                     <TableCell>Fecha límite</TableCell>
                     <TableCell>Asignado por</TableCell>
                     <TableCell>Estado</TableCell>
+                    {hayInformes && <TableCell align="center">Informe</TableCell>}
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -351,11 +364,22 @@ export default function TodosCompromisos() {
                         </TableCell>
                         <TableCell>{i.asignadoPor}</TableCell>
                         <TableCell><EstadoChip estado={i.estado} /></TableCell>
+                        {hayInformes && (
+                          <TableCell align="center" onClick={(e) => e.stopPropagation()}>
+                            {(i.origen === 'mentoria' || i.origen === 'tutoria') && (
+                              <Tooltip title="Informe de la mentoría (PDF)">
+                                <IconButton size="small" onClick={() => descargarInforme(i)} aria-label={`Descargar el informe de ${i.localNombre}`}>
+                                  <PdfIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                          </TableCell>
+                        )}
                       </TableRow>
                     );
                   })}
                   {visibles.length === 0 && (
-                    <TableRow><TableCell colSpan={7} align="center" sx={{ py: 5, color: 'text.secondary' }}>No hay compromisos con estos filtros.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={hayInformes ? 8 : 7} align="center" sx={{ py: 5, color: 'text.secondary' }}>No hay compromisos con estos filtros.</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>

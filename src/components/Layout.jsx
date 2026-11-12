@@ -20,6 +20,7 @@ import {
   TaskAlt as TaskAltIcon,
   AssignmentTurnedIn as AssignmentTurnedInIcon,
   PlaylistAddCheck as TodosCompromisosIcon,
+  Restaurant as ProductoIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -35,6 +36,7 @@ const menuItems = [
   { path: '/todos-compromisos', label: 'Todos los compromisos', icon: <TodosCompromisosIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor'] },
   { path: '/compromisos', label: 'Compromisos Revisión', icon: <AssignmentTurnedInIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor'] },
   { path: '/auditorias', label: 'Auditoría', icon: <FactCheckIcon />, roles: ['master', 'gerencia', 'auditor'] },
+  { path: '/auditorias-producto', label: 'Auditoría de Producto', icon: <ProductoIcon />, roles: ['master', 'gerencia'] },
   { path: '/mentorias', label: 'Mentorías', icon: <SchoolIcon />, roles: ['master', 'gerencia', 'mentor'] },
   { path: '/compromisos-mentoria', label: 'Compromisos Mentoría', icon: <TaskAltIcon />, roles: ['master', 'gerencia', 'mentor', 'administrador'] },
   { path: '/usuarios', label: 'Usuarios', icon: <PeopleIcon />, roles: ['master'] },
@@ -51,6 +53,7 @@ const ROL_COLOR = {
   auditor: '#009688',
   supervisorinterno: '#0288d1',
   mentor: '#6d4c41',
+  producto: '#e65100',
 };
 
 export default function Layout() {
