@@ -1,5 +1,5 @@
 import React, { useState, createContext, useContext, useMemo } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { Box, Typography, Button } from '@mui/material';
@@ -17,6 +17,7 @@ import Auditorias from './pages/Auditorias';
 import Mentorias from './pages/Mentorias';
 import CompromisosMentoria from './pages/CompromisosMentoria';
 import Compromisos from './pages/Compromisos';
+import CompromisosProducto from './pages/CompromisosProducto';
 import TodosCompromisos from './pages/TodosCompromisos';
 import DashboardProducto from './pages/DashboardProducto';
 import Layout from './components/Layout';
@@ -59,6 +60,21 @@ function Inicio() {
   return <Navigate to={rutaInicio(user?.rol)} />;
 }
 
+// Dirección sin pantalla: antes quedaba el contenido en blanco sin explicación.
+function NoEncontrada() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  return (
+    <Box sx={{ p: 4, textAlign: 'center' }}>
+      <Typography variant="h6" gutterBottom>Esta página no existe</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        La dirección no corresponde a ninguna pantalla del sistema. Si acabas de actualizar el menú, puede faltar actualizar el resto del dashboard.
+      </Typography>
+      <Button variant="contained" onClick={() => navigate(rutaInicio(user?.rol))}>Ir al inicio</Button>
+    </Box>
+  );
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -71,6 +87,7 @@ function AppRoutes() {
         <Route path="mentorias" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'mentor']}><Mentorias /></PrivateRoute>} />
         <Route path="compromisos-mentoria" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'mentor', 'administrador']}><CompromisosMentoria /></PrivateRoute>} />
         <Route path="todos-compromisos" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor']}><TodosCompromisos /></PrivateRoute>} />
+        <Route path="compromisos-producto" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'administrador', 'mentor']}><CompromisosProducto /></PrivateRoute>} />
         <Route path="compromisos" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor']}><Compromisos /></PrivateRoute>} />
         <Route path="auditorias-producto" element={<PrivateRoute allowedRoles={['master', 'gerencia']}><DashboardProducto /></PrivateRoute>} />
         <Route path="auditorias" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'auditor']}><Auditorias /></PrivateRoute>} />
@@ -78,6 +95,7 @@ function AppRoutes() {
         <Route path="locales" element={<PrivateRoute allowedRoles={['master']}><Locales /></PrivateRoute>} />
         <Route path="supervisores" element={<PrivateRoute allowedRoles={['master']}><Supervisores /></PrivateRoute>} />
         <Route path="asignar-locales" element={<PrivateRoute allowedRoles={['master']}><AsignarLocales /></PrivateRoute>} />
+        <Route path="*" element={<NoEncontrada />} />
       </Route>
     </Routes>
   );
