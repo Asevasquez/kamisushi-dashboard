@@ -75,7 +75,7 @@ function desdeRevision(c, soloLectura) {
     localId: String(c.localId || ''),
     localNombre: c.localNombre,
     titulo: c.texto,
-    detalle: `${c.seccionLabel || c.seccion || ''}${c.fechaRevision ? ` · revisión del ${fmtFecha(aFecha(c.fechaRevision))}` : ''}`,
+    detalle: `${c.seccionLabel || c.seccion || ''}${c.fechaRevision ? ` · ${c.origen === 'producto' ? 'auditoría de producto' : 'revisión'} del ${fmtFecha(aFecha(c.fechaRevision))}` : ''}`,
     responsable: c.responsableNombre || '—',
     asignadoPor: c.supervisorNombre || '—',
     fecha,

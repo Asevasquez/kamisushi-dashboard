@@ -29,6 +29,7 @@ const SECCIONES = [
   { key: 'servicioCliente', label: 'Servicio al Cliente' },
   { key: 'cocina', label: 'Cocina' },
   { key: 'general', label: 'Generales' },
+  { key: 'producto', label: 'Producto' },
 ];
 const labelSeccion = (k) => SECCIONES.find((s) => s.key === k)?.label || k;
 
@@ -271,7 +272,7 @@ export function DetalleDialog({ id, onClose, onChanged, onEliminar, notificar })
                   <EstadoChip estado={c.estadoVisible} />
                 </Box>
                 <Typography variant="body2" color="text.secondary">
-                  Revisión del {fmtFechaISO(c.fechaRevision)} · Supervisora: {c.supervisorNombre || '—'}
+                  {c.origen === 'producto' ? 'Auditoría de producto' : 'Revisión'} del {fmtFechaISO(c.fechaRevision)} · {c.origen === 'producto' ? 'Auditora' : 'Supervisora'}: {c.supervisorNombre || '—'}
                 </Typography>
               </Box>
               <IconButton aria-label="Cerrar" onClick={onClose} sx={{ mt: -0.5, mr: -1 }}><CloseIcon /></IconButton>
@@ -433,10 +434,10 @@ const TABS = [
   { valor: 'cerrado', label: 'Cerrados' },
 ];
 
-function Seguimiento({ esAdmin, esMentor, localInicial, idAbrir, onCerrarDetalle, notificar }) {
+function Seguimiento({ esAdmin, esMentor, localInicial, seccionInicial, idAbrir, onCerrarDetalle, notificar }) {
   const { tono, fondo } = useTono();
   const [estado, setEstado] = useState('todos');
-  const [filtros, setFiltros] = useState({ localId: localInicial || '', seccion: '', supervisorId: '', mes: '' });
+  const [filtros, setFiltros] = useState({ localId: localInicial || '', seccion: seccionInicial || '', supervisorId: '', mes: '' });
   const [alcance, setAlcance] = useState('propios');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(20);
@@ -1096,6 +1097,9 @@ export default function Compromisos() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [vista, setVista] = useState('seguimiento');
   const [localInicial, setLocalInicial] = useState('');
+  // Se puede abrir ya filtrado por sección (el dashboard de Producto enlaza a /compromisos?seccion=producto)
+  const seccionURL = searchParams.get('seccion');
+  const seccionInicial = SECCIONES.some((x) => x.key === seccionURL) ? seccionURL : '';
   const [claveSeg, setClaveSeg] = useState(0); // fuerza a recrear la lista al saltar desde la vista general
   const [snack, setSnack] = useState({ open: false, msg: '', sev: 'success' });
 
@@ -1113,7 +1117,7 @@ export default function Compromisos() {
               ? 'Los de los locales que administras y el seguimiento de los que mentoreas o tutoreas'
               : esAdmin
                 ? 'Los compromisos de tus locales: sube la evidencia antes de la fecha límite'
-                : 'Seguimiento de los compromisos acordados en las revisiones'}
+                : 'Seguimiento de los compromisos acordados en las revisiones y en las auditorías de producto'}
           </Typography>
         </Box>
         {esGlobal && (
@@ -1127,7 +1131,7 @@ export default function Compromisos() {
       <Box mt={2}>
         {esGlobal && vista === 'general'
           ? <VistaGeneral onVerLocal={verLocal} notificar={notificar} />
-          : <Seguimiento key={claveSeg} esAdmin={esAdmin} esMentor={esMentor} localInicial={localInicial}
+          : <Seguimiento key={claveSeg} esAdmin={esAdmin} esMentor={esMentor} localInicial={localInicial} seccionInicial={seccionInicial}
               idAbrir={searchParams.get('id')} onCerrarDetalle={cerrarDetalle} notificar={notificar} />}
       </Box>
 

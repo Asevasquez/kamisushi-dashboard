@@ -2,6 +2,7 @@ import React, { useState, createContext, useContext, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { Box, Typography, Button } from '@mui/material';
 import GlobalStyles from '@mui/material/GlobalStyles';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
@@ -17,16 +18,31 @@ import Mentorias from './pages/Mentorias';
 import CompromisosMentoria from './pages/CompromisosMentoria';
 import Compromisos from './pages/Compromisos';
 import TodosCompromisos from './pages/TodosCompromisos';
+import DashboardProducto from './pages/DashboardProducto';
 import Layout from './components/Layout';
 
 // Contexto global del modo oscuro
 export const ColorModeContext = createContext({ toggleColorMode: () => {}, mode: 'light' });
 export const useColorMode = () => useContext(ColorModeContext);
 
+// El perfil "producto" usa solo la app móvil. Sin esto, al no tener ninguna ruta permitida, la web lo
+// rebotaría en un bucle entre /dashboard y /dashboard.
+function SoloApp() {
+  const { logout } = useAuth();
+  return (
+    <Box sx={{ p: 4, textAlign: 'center' }}>
+      <Typography variant="h6" gutterBottom>Este perfil usa solo la app móvil</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>La Auditoría de Producto se hace desde la app.</Typography>
+      <Button variant="contained" onClick={logout}>Cerrar sesión</Button>
+    </Box>
+  );
+}
+
 function PrivateRoute({ children, allowedRoles }) {
   const { user, loading } = useAuth();
   if (loading) return <div>Cargando...</div>;
   if (!user) return <Navigate to="/login" />;
+  if (user.rol === 'producto') return <SoloApp />;
   if (allowedRoles && !allowedRoles.includes(user.rol)) return <Navigate to={rutaInicio(user.rol)} />;
   return children;
 }
@@ -56,6 +72,7 @@ function AppRoutes() {
         <Route path="compromisos-mentoria" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'mentor', 'administrador']}><CompromisosMentoria /></PrivateRoute>} />
         <Route path="todos-compromisos" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor']}><TodosCompromisos /></PrivateRoute>} />
         <Route path="compromisos" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor']}><Compromisos /></PrivateRoute>} />
+        <Route path="auditorias-producto" element={<PrivateRoute allowedRoles={['master', 'gerencia']}><DashboardProducto /></PrivateRoute>} />
         <Route path="auditorias" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'auditor']}><Auditorias /></PrivateRoute>} />
         <Route path="usuarios" element={<PrivateRoute allowedRoles={['master']}><Usuarios /></PrivateRoute>} />
         <Route path="locales" element={<PrivateRoute allowedRoles={['master']}><Locales /></PrivateRoute>} />
