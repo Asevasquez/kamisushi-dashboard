@@ -434,10 +434,10 @@ const TABS = [
   { valor: 'cerrado', label: 'Cerrados' },
 ];
 
-function Seguimiento({ esAdmin, esMentor, localInicial, seccionInicial, idAbrir, onCerrarDetalle, notificar }) {
+function Seguimiento({ esAdmin, esMentor, localInicial, origen, idAbrir, onCerrarDetalle, notificar }) {
   const { tono, fondo } = useTono();
   const [estado, setEstado] = useState('todos');
-  const [filtros, setFiltros] = useState({ localId: localInicial || '', seccion: seccionInicial || '', supervisorId: '', mes: '' });
+  const [filtros, setFiltros] = useState({ localId: localInicial || '', seccion: '', supervisorId: '', mes: '' });
   const [alcance, setAlcance] = useState('propios');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(20);
@@ -459,6 +459,7 @@ function Seguimiento({ esAdmin, esMentor, localInicial, seccionInicial, idAbrir,
       const params = { estado, page: page + 1, limit: rowsPerPage };
       Object.entries(filtros).forEach(([k, v]) => { if (v) params[k] = v; });
       if (esAdmin) params.alcance = alcance;
+      params.origen = origen; // 'revision' | 'producto': cada módulo ve solo lo suyo
       const { data } = await api.get('/compromisos', { params });
       setResp(data);
     } catch (e) {
@@ -466,17 +467,17 @@ function Seguimiento({ esAdmin, esMentor, localInicial, seccionInicial, idAbrir,
     } finally {
       setLoading(false);
     }
-  }, [estado, filtros, page, rowsPerPage, alcance, esAdmin]);
+  }, [estado, filtros, page, rowsPerPage, alcance, esAdmin, origen]);
   useEffect(() => { cargar(); }, [cargar]);
 
   useEffect(() => {
-    api.get('/compromisos/filtros', { params: esAdmin ? { alcance } : {} })
+    api.get('/compromisos/filtros', { params: { ...(esAdmin ? { alcance } : {}), origen } })
       .then((r) => setOpciones(r.data)).catch(() => {});
-  }, [esAdmin, alcance]);
+  }, [esAdmin, alcance, origen]);
 
   const cargarResumenes = useCallback(async () => {
     if (!esAdmin) return;
-    const pedir = (a) => api.get('/compromisos/resumen', { params: { alcance: a, meses: 12 } }).then((r) => r.data).catch(() => null);
+    const pedir = (a) => api.get('/compromisos/resumen', { params: { alcance: a, meses: 12, origen } }).then((r) => r.data).catch(() => null);
     // La mentoría (solo lectura) existe únicamente para el mentor.
     const [propios, mentoria] = await Promise.all([pedir('propios'), esMentor ? pedir('mentoria') : Promise.resolve(null)]);
     setResumenes({ propios, mentoria });
@@ -575,10 +576,12 @@ function Seguimiento({ esAdmin, esMentor, localInicial, seccionInicial, idAbrir,
               <MenuItem value="">Todos los locales</MenuItem>
               {opciones.locales.map((l) => <MenuItem key={l._id} value={l._id}>{l.nombre}</MenuItem>)}
             </TextField>
-            <TextField select size="small" label="Sección" value={filtros.seccion} onChange={(e) => cambiarFiltro('seccion', e.target.value)} sx={{ minWidth: 170 }}>
-              <MenuItem value="">Ambas secciones</MenuItem>
-              {SECCIONES.map((s) => <MenuItem key={s.key} value={s.key}>{s.label}</MenuItem>)}
-            </TextField>
+            {origen !== 'producto' && (
+              <TextField select size="small" label="Sección" value={filtros.seccion} onChange={(e) => cambiarFiltro('seccion', e.target.value)} sx={{ minWidth: 170 }}>
+                <MenuItem value="">Ambas secciones</MenuItem>
+                {SECCIONES.filter((x) => x.key !== 'producto').map((x) => <MenuItem key={x.key} value={x.key}>{x.label}</MenuItem>)}
+              </TextField>
+            )}
             {!esAdmin && (
               <TextField select size="small" label="Supervisora" value={filtros.supervisorId} onChange={(e) => cambiarFiltro('supervisorId', e.target.value)} sx={{ minWidth: 190 }}>
                 <MenuItem value="">Todas las supervisoras</MenuItem>
@@ -731,7 +734,7 @@ function Seguimiento({ esAdmin, esMentor, localInicial, seccionInicial, idAbrir,
 }
 
 // ─── Vista general (gerencia y master) ─────────────────────────────────────
-function VistaGeneral({ onVerLocal, notificar }) {
+function VistaGeneral({ onVerLocal, origen, notificar }) {
   const { tono, fondo } = useTono();
   const [f, setF] = useState({ meses: 6, seccion: '', localId: '', administradorId: '', supervisorId: '' });
   const [topLocales, setTopLocales] = useState(10);
@@ -742,10 +745,10 @@ function VistaGeneral({ onVerLocal, notificar }) {
   const [exportando, setExportando] = useState(false);
 
   const paramsFiltro = useCallback(() => {
-    const p = { meses: f.meses };
+    const p = { meses: f.meses, origen };
     ['seccion', 'localId', 'administradorId', 'supervisorId'].forEach((k) => { if (f[k]) p[k] = f[k]; });
     return p;
-  }, [f]);
+  }, [f, origen]);
 
   useEffect(() => {
     let vigente = true;
@@ -765,8 +768,8 @@ function VistaGeneral({ onVerLocal, notificar }) {
   }, [paramsFiltro, topLocales]);
 
   useEffect(() => {
-    api.get('/compromisos/filtros').then((res) => setOpciones(res.data)).catch(() => {});
-  }, []);
+    api.get('/compromisos/filtros', { params: { origen } }).then((res) => setOpciones(res.data)).catch(() => {});
+  }, [origen]);
 
   const set = (k, v) => setF((prev) => ({ ...prev, [k]: v }));
 
@@ -878,10 +881,12 @@ function VistaGeneral({ onVerLocal, notificar }) {
           <MenuItem value={6}>Últimos 6 meses</MenuItem>
           <MenuItem value={12}>Últimos 12 meses</MenuItem>
         </TextField>
-        <TextField select size="small" label="Sección" value={f.seccion} onChange={(e) => set('seccion', e.target.value)} sx={{ minWidth: 170 }}>
-          <MenuItem value="">Ambas secciones</MenuItem>
-          {SECCIONES.map((s) => <MenuItem key={s.key} value={s.key}>{s.label}</MenuItem>)}
-        </TextField>
+        {origen !== 'producto' && (
+          <TextField select size="small" label="Sección" value={f.seccion} onChange={(e) => set('seccion', e.target.value)} sx={{ minWidth: 170 }}>
+            <MenuItem value="">Ambas secciones</MenuItem>
+            {SECCIONES.filter((x) => x.key !== 'producto').map((x) => <MenuItem key={x.key} value={x.key}>{x.label}</MenuItem>)}
+          </TextField>
+        )}
         {select('Local', 'localId', opciones.locales, 'Todos los locales', 200)}
         {select('Administrador', 'administradorId', opciones.administradores, 'Todos los administradores', 200)}
         {select('Supervisora', 'supervisorId', opciones.supervisoras, 'Todas las supervisoras', 190)}
@@ -1088,7 +1093,8 @@ function VistaGeneral({ onVerLocal, notificar }) {
 }
 
 // ─── Página ─────────────────────────────────────────────────────────────────
-export default function Compromisos() {
+// origen: 'revision' (Compromisos Revisión, que ya no tiene ítem de menú) | 'producto' (módulo Compromisos Producto)
+export default function Compromisos({ origen = 'revision' } = {}) {
   const { user } = useAuth();
   const esGlobal = ['master', 'gerencia'].includes(user?.rol);
   // Administrador y mentor suben evidencia en sus locales; solo el mentor tiene además "Mentoría" (solo lectura).
@@ -1097,9 +1103,7 @@ export default function Compromisos() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [vista, setVista] = useState('seguimiento');
   const [localInicial, setLocalInicial] = useState('');
-  // Se puede abrir ya filtrado por sección (el dashboard de Producto enlaza a /compromisos?seccion=producto)
-  const seccionURL = searchParams.get('seccion');
-  const seccionInicial = SECCIONES.some((x) => x.key === seccionURL) ? seccionURL : '';
+  const esProducto = origen === 'producto';
   const [claveSeg, setClaveSeg] = useState(0); // fuerza a recrear la lista al saltar desde la vista general
   const [snack, setSnack] = useState({ open: false, msg: '', sev: 'success' });
 
@@ -1111,13 +1115,15 @@ export default function Compromisos() {
     <Box sx={{ width: '100%', maxWidth: '100%' }}>
       <Box display="flex" flexWrap="wrap" justifyContent="space-between" alignItems="flex-start" gap={2}>
         <Box>
-          <Typography variant="h5" fontWeight={500}>Compromisos</Typography>
+          <Typography variant="h5" fontWeight={500}>{esProducto ? 'Compromisos de Producto' : 'Compromisos'}</Typography>
           <Typography variant="caption" color="text.secondary">
             {esMentor
               ? 'Los de los locales que administras y el seguimiento de los que mentoreas o tutoreas'
               : esAdmin
-                ? 'Los compromisos de tus locales: sube la evidencia antes de la fecha límite'
-                : 'Seguimiento de los compromisos acordados en las revisiones y en las auditorías de producto'}
+                ? (esProducto ? 'Los compromisos de producto de tus locales: sube la evidencia antes de la fecha límite' : 'Los compromisos de tus locales: sube la evidencia antes de la fecha límite')
+                : esProducto
+                  ? 'Seguimiento de los compromisos acordados en las auditorías de producto'
+                  : 'Seguimiento de los compromisos acordados en las revisiones'}
           </Typography>
         </Box>
         {esGlobal && (
@@ -1130,8 +1136,8 @@ export default function Compromisos() {
 
       <Box mt={2}>
         {esGlobal && vista === 'general'
-          ? <VistaGeneral onVerLocal={verLocal} notificar={notificar} />
-          : <Seguimiento key={claveSeg} esAdmin={esAdmin} esMentor={esMentor} localInicial={localInicial} seccionInicial={seccionInicial}
+          ? <VistaGeneral onVerLocal={verLocal} origen={origen} notificar={notificar} />
+          : <Seguimiento key={claveSeg} esAdmin={esAdmin} esMentor={esMentor} localInicial={localInicial} origen={origen}
               idAbrir={searchParams.get('id')} onCerrarDetalle={cerrarDetalle} notificar={notificar} />}
       </Box>
 

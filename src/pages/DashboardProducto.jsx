@@ -48,6 +48,18 @@ const fmtFecha = (f) => {
 };
 const colorPct = (pct) => (pct === null || pct === undefined ? '#9e9e9e' : pct >= 80 ? '#2e7d32' : pct >= 70 ? '#ef6c00' : '#c62828');
 
+// Dice el motivo real de un fallo de carga (antes: siempre el mismo mensaje genérico).
+function motivoError(e, que) {
+  const st = e && e.response && e.response.status;
+  const msg = e && e.response && e.response.data && e.response.data.error;
+  if (msg) return msg;
+  if (!e || !e.response) return `${que}: no hay conexión con el servidor.`;
+  if (st === 404) return `${que}: el servidor no tiene el módulo de Auditoría de Producto (error 404). Falta desplegar el servidor o registrar la ruta /api/auditorias-producto en server.js.`;
+  if (st === 401) return 'Tu sesión expiró. Vuelve a iniciar sesión.';
+  if (st === 403) return `${que}: no tienes acceso (error 403).`;
+  return `${que} (error ${st}).`;
+}
+
 async function descargarWorkbook(workbook, nombreArchivo) {
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/octet-stream' });
@@ -384,7 +396,7 @@ function DetalleDialog({ id, plan, tituloPlan, puedeEliminar, onClose, onElimina
     setData(null); setError(''); setTab('resumen');
     api.get(`/auditorias-producto/${id}`)
       .then((r) => { if (vivo) setData(r.data); })
-      .catch((e) => { if (vivo) setError(e.response?.data?.error || 'No se pudo cargar la auditoría'); });
+      .catch((e) => { if (vivo) setError(motivoError(e, 'No se pudo cargar la auditoría')); });
     return () => { vivo = false; };
   }, [id]);
 
@@ -563,7 +575,7 @@ function TabAuditorias({ params, secciones, recarga, puedeEliminar, onVer, onEli
     setLoading(true); setError('');
     api.get('/auditorias-producto', { params: { ...params, ...(seccionDebil ? { seccionDebil } : {}), page: page + 1, limit: rows } })
       .then((r) => { if (vivo) setDatos(r.data); })
-      .catch((e) => { if (vivo) setError(e.response?.data?.error || 'No se pudo cargar la lista'); })
+      .catch((e) => { if (vivo) setError(motivoError(e, 'No se pudo cargar la lista')); })
       .finally(() => { if (vivo) setLoading(false); });
     return () => { vivo = false; };
   }, [params, seccionDebil, page, rows, recarga]);
@@ -677,7 +689,7 @@ export default function DashboardProducto() {
     setLoading(true); setError('');
     api.get('/auditorias-producto/resumen', { params })
       .then((r) => setResumen(r.data))
-      .catch((e) => setError(e.response?.data?.error || 'No se pudo cargar el dashboard de Producto'))
+      .catch((e) => setError(motivoError(e, 'No se pudo cargar el dashboard de Producto')))
       .finally(() => setLoading(false));
   }, [params]);
   useEffect(() => { cargar(); }, [cargar]);
@@ -757,7 +769,7 @@ export default function DashboardProducto() {
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      {tab === 'resumen' && resumen && <TabResumen resumen={resumen} plan={plan?.plan} tituloPlan={plan?.titulo || resumen.tituloPlan} onIrCompromisos={() => navigate('/compromisos?seccion=producto')} />}
+      {tab === 'resumen' && resumen && <TabResumen resumen={resumen} plan={plan?.plan} tituloPlan={plan?.titulo || resumen.tituloPlan} onIrCompromisos={() => navigate('/compromisos-producto')} />}
       {tab === 'comparativo' && resumen && <TabComparativo resumen={resumen} onExportar={exportarComparativo} />}
       {tab === 'auditorias' && (
         <TabAuditorias params={params} secciones={plan?.secciones || []} recarga={recarga} puedeEliminar={puedeEliminar}
@@ -766,7 +778,7 @@ export default function DashboardProducto() {
 
       {detalleId && (
         <DetalleDialog id={detalleId} plan={plan?.plan} tituloPlan={plan?.titulo} puedeEliminar={puedeEliminar} onClose={() => setDetalleId(null)} onEliminar={eliminar}
-          onVerCompromisos={() => navigate('/compromisos?seccion=producto')} />
+          onVerCompromisos={() => navigate('/compromisos-producto')} />
       )}
 
       <Dialog open={!!aEliminar} onClose={() => setAEliminar(null)}>

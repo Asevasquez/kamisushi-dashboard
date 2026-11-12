@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import logoKamiSushi from '../assets/logo-kamisushi.png';
 import {
   AppBar, Box, Toolbar, Typography, Drawer,
-  List, ListItem, ListItemIcon, ListItemText, Avatar,
+  List, ListItemButton, ListItemIcon, ListItemText, Avatar,
   Divider, Tooltip, IconButton, useTheme,
 } from '@mui/material';
 import {
@@ -17,9 +17,8 @@ import {
   BarChart as BarChartIcon,
   FactCheck as FactCheckIcon,
   School as SchoolIcon,
-  TaskAlt as TaskAltIcon,
-  AssignmentTurnedIn as AssignmentTurnedInIcon,
   PlaylistAddCheck as TodosCompromisosIcon,
+  AssignmentTurnedIn as CompromisosProductoIcon,
   Restaurant as ProductoIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
@@ -33,12 +32,11 @@ const menuItems = [
   { path: '/dashboard', label: 'Dashboard', icon: <DashboardIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor'] },
   { path: '/revisiones', label: 'Revisiones', icon: <AssessmentIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'auditor', 'supervisorinterno', 'mentor'] },
   { path: '/dashboard-supervision', label: 'Dashboard Supervisión', icon: <BarChartIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor'] },
-  { path: '/todos-compromisos', label: 'Todos los compromisos', icon: <TodosCompromisosIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor'] },
-  { path: '/compromisos', label: 'Compromisos Revisión', icon: <AssignmentTurnedInIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor'] },
+  { path: '/todos-compromisos', alias: ['/compromisos', '/compromisos-mentoria'], label: 'Todos los compromisos', icon: <TodosCompromisosIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor'] },
   { path: '/auditorias', label: 'Auditoría', icon: <FactCheckIcon />, roles: ['master', 'gerencia', 'auditor'] },
   { path: '/auditorias-producto', label: 'Auditoría de Producto', icon: <ProductoIcon />, roles: ['master', 'gerencia'] },
+  { path: '/compromisos-producto', label: 'Compromisos Producto', icon: <CompromisosProductoIcon />, roles: ['master', 'gerencia', 'administrador', 'mentor'] },
   { path: '/mentorias', label: 'Mentorías', icon: <SchoolIcon />, roles: ['master', 'gerencia', 'mentor'] },
-  { path: '/compromisos-mentoria', label: 'Compromisos Mentoría', icon: <TaskAltIcon />, roles: ['master', 'gerencia', 'mentor', 'administrador'] },
   { path: '/usuarios', label: 'Usuarios', icon: <PeopleIcon />, roles: ['master'] },
   { path: '/asignar-locales', label: 'Asignar Locales', icon: <AssignmentIcon />, roles: ['master'] },
   { path: '/locales', label: 'Locales', icon: <StoreIcon />, roles: ['master'] },
@@ -135,10 +133,12 @@ export default function Layout() {
         <Box sx={{ overflow: 'auto', pt: 1 }}>
           <List>
             {filteredMenu.map((item) => {
-              const selected = location.pathname === item.path;
+              // Las páginas de compromisos que ya no están en el menú (se llega a ellas por enlaces, p. ej. "Ver seguimiento")
+              // resaltan "Todos los compromisos", que es donde ahora viven.
+              const selected = location.pathname === item.path || (item.alias || []).includes(location.pathname);
               return (
-                <ListItem
-                  button
+                <ListItemButton
+                  component="li"
                   key={item.path}
                   selected={selected}
                   onClick={() => navigate(item.path)}
@@ -160,7 +160,7 @@ export default function Layout() {
                     primary={item.label}
                     primaryTypographyProps={{ fontSize: 14, color: selected ? '#fff' : (isDark ? '#e0e0e0' : '#333') }}
                   />
-                </ListItem>
+                </ListItemButton>
               );
             })}
           </List>

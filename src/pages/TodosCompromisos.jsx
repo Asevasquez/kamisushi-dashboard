@@ -75,7 +75,7 @@ function desdeRevision(c, soloLectura) {
     localId: String(c.localId || ''),
     localNombre: c.localNombre,
     titulo: c.texto,
-    detalle: `${c.seccionLabel || c.seccion || ''}${c.fechaRevision ? ` · ${c.origen === 'producto' ? 'auditoría de producto' : 'revisión'} del ${fmtFecha(aFecha(c.fechaRevision))}` : ''}`,
+    detalle: `${c.seccionLabel || c.seccion || ''}${c.fechaRevision ? ` · revisión del ${fmtFecha(aFecha(c.fechaRevision))}` : ''}`,
     responsable: c.responsableNombre || '—',
     asignadoPor: c.supervisorNombre || '—',
     fecha,
@@ -163,7 +163,7 @@ export default function TodosCompromisos() {
         let recibidos = 0;
         let total = 0;
         do {
-          const params = { estado, page: pagina, limit: PAGINA };
+          const params = { estado, page: pagina, limit: PAGINA, origen: 'revision' }; // los de Producto tienen su propio módulo
           if (alcance) params.alcance = alcance;
           if (localId) params.localId = localId;
           const { data } = await api.get('/compromisos', { params });
@@ -176,7 +176,7 @@ export default function TodosCompromisos() {
       }
       if (!estados.length) {
         // Sin estados que listar: igual se piden los conteos (1 resultado basta)
-        const params = { estado: 'todos', page: 1, limit: 1 };
+        const params = { estado: 'todos', page: 1, limit: 1, origen: 'revision' };
         if (alcance) params.alcance = alcance;
         if (localId) params.localId = localId;
         const { data } = await api.get('/compromisos', { params });
