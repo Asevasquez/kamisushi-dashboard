@@ -23,7 +23,11 @@ const ROL_COLORS = {
   auditor: 'info',
   supervisorinterno: 'success',
   mentor: 'default',
+  producto: 'default', // se pinta en naranja (ROL_ESTILO), como en el menú
 };
+
+// Los colores de Chip de MUI ya están todos usados: Producto lleva el naranja del menú
+const ROL_ESTILO = { producto: { bgcolor: '#e65100', color: '#fff' } };
 
 export default function Usuarios() {
   const [usuarios, setUsuarios] = useState([]);
@@ -158,7 +162,7 @@ export default function Usuarios() {
                 <TableCell><strong>{u.nombre}</strong></TableCell>
                 <TableCell>{u.email}</TableCell>
                 <TableCell>
-                  <Chip label={u.rol} color={ROL_COLORS[u.rol] || 'default'} size="small" />
+                  <Chip label={u.rol} color={ROL_COLORS[u.rol] || 'default'} size="small" sx={ROL_ESTILO[u.rol]} />
                 </TableCell>
                 <TableCell>
                   <Chip label={u.activo ? 'Activo' : 'Inactivo'}
@@ -201,13 +205,15 @@ export default function Usuarios() {
             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
             helperText={editingId ? 'Solo completa si deseas cambiar la contraseña' : 'Mínimo 6 caracteres'} />
           <TextField select fullWidth label="Rol" margin="normal" value={formData.rol}
-            onChange={(e) => setFormData({ ...formData, rol: e.target.value, supervisorId: '' })}>
+            onChange={(e) => setFormData({ ...formData, rol: e.target.value, supervisorId: '' })}
+            helperText={formData.rol === 'producto' ? 'Hace las Auditorías de Producto en la app. En la web solo ve "Compromisos Producto". No necesita locales asignados.' : undefined}>
             <MenuItem value="supervisor">Supervisor</MenuItem>
             <MenuItem value="supervisorinterno">Supervisor Interno</MenuItem>
             <MenuItem value="administrador">Administrador</MenuItem>
             <MenuItem value="gerencia">Gerencia</MenuItem>
             <MenuItem value="auditor">Auditor</MenuItem>
             <MenuItem value="mentor">Mentor</MenuItem>
+            <MenuItem value="producto">Producto</MenuItem>
             <MenuItem value="master">Master</MenuItem>
           </TextField>
           {formData.rol === 'supervisor' && (
