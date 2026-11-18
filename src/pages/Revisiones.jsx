@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useContext, createContext } from 'react';
 import {
   Box, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, TablePagination, Chip, IconButton,
@@ -6,6 +6,7 @@ import {
   DialogContent, DialogActions, Typography, CircularProgress,
   Divider, Tooltip, Tabs, Tab, LinearProgress, ImageList,
   ImageListItem, Accordion, AccordionSummary, AccordionDetails,
+  Autocomplete, Checkbox, createFilterOptions,
 } from '@mui/material';
 import {
   Delete as DeleteIcon,
@@ -346,6 +347,215 @@ function TarjetaMarca({ titulo, icono, colorBorde, fondoIcono, punto }) {
   );
 }
 
+// ─── Filtro de locales: selección múltiple con buscador ─────────────────────
+const CtxFiltroLocales = createContext(null);
+
+const sinTildes = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+// Se busca solo por el nombre del local (si también contara la ciudad, "san" traería todos los de Santiago)
+const filtrarLocales = createFilterOptions({ ignoreAccents: true, stringify: (l) => l.nombre || '' });
+
+// Pone en negrita la parte del nombre que coincide con lo escrito
+function resaltar(nombre, texto) {
+  const buscado = sinTildes(texto).trim();
+  if (!buscado) return nombre;
+  const i = sinTildes(nombre).indexOf(buscado);
+  if (i < 0) return nombre;
+  return <>{nombre.slice(0, i)}<strong>{nombre.slice(i, i + buscado.length)}</strong>{nombre.slice(i + buscado.length)}</>;
+}
+
+// Lista desplegable: arriba "N de M locales" + seleccionar todos los resultados; abajo, cuántos hay elegidos
+const PaperLocales = React.forwardRef(function PaperLocales({ children, ...props }, ref) {
+  const ctx = useContext(CtxFiltroLocales);
+  if (!ctx) return <Paper ref={ref} {...props}>{children}</Paper>;
+  const visibles = ctx.visiblesRef.current || [];
+  const elegidos = new Set(ctx.value.map((l) => l._id));
+  const faltan = visibles.filter((l) => !elegidos.has(l._id));
+  const sinPerderFoco = (e) => e.preventDefault(); // que tocar un botón no cierre la lista
+  return (
+    <Paper ref={ref} {...props}>
+      <Box onMouseDown={sinPerderFoco} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, px: 1.75, py: 0.75, borderBottom: 1, borderColor: 'divider' }}>
+        <Typography variant="caption" color="text.secondary">{visibles.length} de {ctx.total} locales</Typography>
+        <Button size="small" disabled={faltan.length === 0} onClick={() => ctx.agregar(faltan)} sx={{ fontWeight: 700 }}>
+          {visibles.length === ctx.total ? 'Seleccionar todos' : `Seleccionar los ${visibles.length} resultados`}
+        </Button>
+      </Box>
+      {children}
+      <Box onMouseDown={sinPerderFoco} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, px: 1.75, py: 0.75, borderTop: 1, borderColor: 'divider' }}>
+        <Typography variant="caption" color="text.secondary">
+          {ctx.value.length === 0 ? 'Ningún local elegido: se muestran todos' : `${ctx.value.length} ${ctx.value.length === 1 ? 'local elegido' : 'locales elegidos'}`}
+        </Typography>
+        <Button size="small" disabled={ctx.value.length === 0} onClick={ctx.limpiar} sx={{ fontWeight: 700 }}>Limpiar selección</Button>
+      </Box>
+    </Paper>
+  );
+});
+
+function FiltroLocales({ locales, value, onChange }) {
+  const visiblesRef = useRef(locales);
+  const [texto, setTexto] = useState('');
+  const ctx = {
+    visiblesRef, value, total: locales.length,
+    agregar: (lista) => {
+      const ya = new Set(value.map((l) => l._id));
+      onChange([...value, ...lista.filter((l) => !ya.has(l._id))]);
+    },
+    limpiar: () => onChange([]),
+  };
+  return (
+    <CtxFiltroLocales.Provider value={ctx}>
+      <Autocomplete
+        multiple disableCloseOnSelect fullWidth size="small" limitTags={3}
+        options={locales} value={value}
+        getOptionLabel={(l) => l.nombre || ''}
+        isOptionEqualToValue={(a, b) => a._id === b._id}
+        filterOptions={(opciones, estado) => { const r = filtrarLocales(opciones, estado); visiblesRef.current = r; return r; }}
+        onChange={(_, v) => onChange(v)}
+        // lo escrito se conserva al marcar un local (para marcar varios del mismo grupo) y se limpia al salir
+        inputValue={texto}
+        onInputChange={(_, v, motivo) => { if (motivo === 'input') setTexto(v); else if (motivo === 'clear' || motivo === 'blur') setTexto(''); }}
+        renderOption={(props, option, { selected }) => {
+          const { key, ...resto } = props;
+          return (
+            <li key={key} {...resto}>
+              <Checkbox size="small" checked={selected} sx={{ mr: 1, p: 0.5 }} tabIndex={-1} disableRipple />
+              <Box sx={{ flex: 1 }}>{resaltar(option.nombre || '', texto)}</Box>
+              {option.ciudad && <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>{option.ciudad}</Typography>}
+            </li>
+          );
+        }}
+        renderInput={(params) => <TextField {...params} label="Locales" placeholder={value.length ? '' : 'Todos los locales'} />}
+        slots={{ paper: PaperLocales }}
+        noOptionsText="Ningún local coincide con lo escrito"
+        clearText="Quitar todos los locales" openText="Abrir la lista de locales" closeText="Cerrar la lista"
+        getLimitTagsText={(mas) => `+${mas}`}
+      />
+    </CtxFiltroLocales.Provider>
+  );
+}
+
+// ─── Observaciones de la revisión (pestaña del detalle) ──────────────────────
+// Reúne todas las observaciones: las de cada pregunta, las generales de cada sección y los comentarios generales
+const SECCIONES_OBS = [
+  { key: 'servicioCliente', label: 'Servicio al Cliente', peso: 40, color: '#2196f3', etiquetaGeneral: 'Observaciones principales', general: (r) => r.servicioCliente?.observacionesPrincipales },
+  { key: 'cuartoFrio', label: 'Cuarto Frío', peso: 30, color: '#4caf50', etiquetaGeneral: 'Observaciones generales', general: (r) => r.cuartoFrio?.observacionesGenerales },
+  { key: 'cuartoCaliente', label: 'Cuarto Caliente', peso: 30, color: '#ff9800', etiquetaGeneral: 'Observaciones generales', general: (r) => r.cuartoCaliente?.observacionesGenerales },
+];
+const hayTexto = (t) => typeof t === 'string' && t.trim() !== '';
+const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
+const unir = (partes) => (partes.length <= 1 ? partes.join('') : `${partes.slice(0, -1).join(', ')} y ${partes[partes.length - 1]}`);
+
+function listarObservaciones(rev) {
+  if (!rev) return [];
+  const grupos = SECCIONES_OBS.map((s) => {
+    const items = Object.entries(rev[s.key]?.respuestas || {})
+      .filter(([, v]) => v && hayTexto(v.observacion))
+      .sort(([a], [b]) => a.localeCompare(b, 'es', { numeric: true }))
+      .map(([id, v]) => ({ tipo: 'pregunta', id, cumple: v.cumple, texto: v.observacion.trim() }));
+    const general = s.general(rev);
+    if (hayTexto(general)) items.push({ tipo: 'general', etiqueta: s.etiquetaGeneral, texto: general.trim() });
+    return { key: s.key, label: s.label, peso: s.peso, color: s.color, items };
+  });
+  const comentario = hayTexto(rev.comentariosGenerales) ? [{ tipo: 'general', etiqueta: 'Comentarios generales', texto: rev.comentariosGenerales.trim() }] : [];
+  grupos.push({ key: 'generales', label: 'Generales de la revisión', peso: null, color: '#78909c', items: comentario });
+  return grupos.filter((g) => g.items.length > 0);
+}
+
+function TabObservaciones({ grupos, isDark }) {
+  const [filtro, setFiltro] = useState('todas');
+  const c = isDark
+    ? { card: '#262626', borde: '#3a3a3a', cita: '#303030', citaTxt: '#e0e0e0', malo: '#ffb4ab', maloBg: '#4a1f1f', bueno: '#a5d6a7', buenoBg: '#1f3d24', tag: '#e1e8eb', tagBg: '#37474f', selBg: '#ff8a80', selTxt: '#1e1e1e', noBorde: '#5a5a5a', noTxt: '#e0e0e0', cnt: '#3a3a3a', cntSel: 'rgba(0,0,0,0.15)' }
+    : { card: '#ffffff', borde: '#e0e0e0', cita: '#f5f5f5', citaTxt: '#333333', malo: '#b71c1c', maloBg: '#fdecea', bueno: '#1b5e20', buenoBg: '#e8f5e9', tag: '#37474f', tagBg: '#eceff1', selBg: '#d32f2f', selTxt: '#ffffff', noBorde: '#bdbdbd', noTxt: '#333333', cnt: '#eeeeee', cntSel: 'rgba(255,255,255,0.25)' };
+
+  const total = grupos.reduce((n, g) => n + g.items.length, 0);
+  if (total === 0) {
+    return (
+      <Box textAlign="center" py={6}>
+        <Typography variant="h6" fontWeight={500}>Esta revisión no tiene observaciones</Typography>
+        <Typography variant="body2" color="textSecondary" sx={{ mt: 1, maxWidth: 480, mx: 'auto' }}>
+          Las observaciones que escribe el supervisor en las preguntas y en cada sección aparecen aquí, agrupadas por sección.
+        </Typography>
+      </Box>
+    );
+  }
+
+  const visibles = filtro === 'todas' ? grupos : grupos.filter((g) => g.key === filtro);
+  const mostradas = visibles.reduce((n, g) => n + g.items.length, 0);
+  const dePregunta = grupos.reduce((n, g) => n + g.items.filter((i) => i.tipo === 'pregunta').length, 0);
+  const deSeccion = grupos.filter((g) => g.key !== 'generales').reduce((n, g) => n + g.items.filter((i) => i.tipo === 'general').length, 0);
+  const comentario = grupos.filter((g) => g.key === 'generales').reduce((n, g) => n + g.items.length, 0);
+  const desglose = unir([
+    dePregunta > 0 && `${dePregunta} ${dePregunta === 1 ? 'de pregunta' : 'de preguntas'}`,
+    deSeccion > 0 && `${deSeccion} ${deSeccion === 1 ? 'general de sección' : 'generales de sección'}`,
+    comentario > 0 && `${comentario} ${comentario === 1 ? 'comentario general' : 'comentarios generales'}`,
+  ].filter(Boolean));
+  const etiquetaFiltro = grupos.find((g) => g.key === filtro)?.label;
+
+  const pildora = (key, label, n, punto) => {
+    const sel = filtro === key;
+    return (
+      <Chip key={key} clickable aria-pressed={sel} aria-label={`${label}: ${plural(n, 'observación', 'observaciones')}`} onClick={() => setFiltro(key)} variant={sel ? 'filled' : 'outlined'}
+        icon={punto ? <Box component="span" sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: punto, ml: '10px !important' }} /> : undefined}
+        label={
+          <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+            {label}
+            <Box component="span" sx={{ fontSize: 12, fontWeight: 700, px: 0.9, borderRadius: 3, bgcolor: sel ? c.cntSel : c.cnt }}>{n}</Box>
+          </Box>
+        }
+        sx={{ height: 36, fontSize: 14, fontWeight: 500, borderRadius: 5, ...(sel ? { bgcolor: c.selBg, color: c.selTxt, '&:hover': { bgcolor: c.selBg } } : { color: c.noTxt, borderColor: c.noBorde }) }} />
+    );
+  };
+
+  return (
+    <Box>
+      <Typography variant="body2" color="textSecondary">
+        {filtro === 'todas'
+          ? `${plural(total, 'observación', 'observaciones')} en esta revisión: ${desglose}`
+          : `Mostrando ${mostradas} de ${total} observaciones · ${etiquetaFiltro}`}
+      </Typography>
+      <Box role="group" aria-label="Filtrar observaciones por sección" sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1.5 }}>
+        {pildora('todas', 'Todas', total)}
+        {grupos.map((g) => pildora(g.key, g.label.replace(' de la revisión', ''), g.items.length, g.color))}
+      </Box>
+
+      {visibles.map((g) => (
+        <Box key={g.key} sx={{ mt: 2.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, pb: 1, borderBottom: 1, borderColor: 'divider' }}>
+            <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: g.color }} />
+            <Typography component="h3" variant="subtitle1" fontWeight={700}>{g.label}</Typography>
+            {g.peso != null && <Typography variant="body2" color="textSecondary">({g.peso}%)</Typography>}
+            <Typography variant="body2" color="textSecondary" sx={{ ml: 'auto' }}>{plural(g.items.length, 'observación', 'observaciones')}</Typography>
+          </Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25, mt: 1.25 }}>
+            {g.items.map((it, i) => (
+              <Paper key={`${g.key}-${it.id || it.etiqueta}-${i}`} variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: c.card, borderColor: c.borde }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1.25 }}>
+                  {it.tipo === 'pregunta' ? (
+                    <>
+                      <Typography component="span" sx={{ fontSize: 12, fontWeight: 700, color: c.malo, bgcolor: c.maloBg, px: 1, py: 0.25, borderRadius: 1 }}>{it.id}</Typography>
+                      <Typography variant="body2" fontWeight={500}>{PREGUNTAS[it.id] || it.id}</Typography>
+                      {it.cumple === false && <Chip size="small" label="No cumple" sx={{ ml: 'auto', fontWeight: 700, color: c.malo, bgcolor: c.maloBg }} />}
+                      {it.cumple === true && <Chip size="small" label="Cumple" sx={{ ml: 'auto', fontWeight: 700, color: c.bueno, bgcolor: c.buenoBg }} />}
+                    </>
+                  ) : (
+                    <>
+                      <Typography component="span" sx={{ fontSize: 12, fontWeight: 700, color: c.tag, bgcolor: c.tagBg, px: 1, py: 0.25, borderRadius: 1 }}>General</Typography>
+                      <Typography variant="body2" fontWeight={500}>{it.etiqueta}</Typography>
+                    </>
+                  )}
+                </Box>
+                <Box sx={{ mt: 1.25, px: 1.5, py: 1.25, borderRadius: 1.5, bgcolor: c.cita, color: c.citaTxt, fontSize: 14, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                  {it.tipo === 'pregunta' && <Box component="span" sx={{ fontWeight: 700, color: c.malo }}>Observación: </Box>}
+                  {it.texto}
+                </Box>
+              </Paper>
+            ))}
+          </Box>
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
 export default function Revisiones() {
   const [revisiones, setRevisiones] = useState([]);
   const [locales, setLocales] = useState([]);
@@ -355,7 +565,7 @@ export default function Revisiones() {
   const [finalizandoId, setFinalizandoId] = useState(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [filters, setFilters] = useState({ localId: '', supervisorId: '', fechaInicio: null, fechaFin: null });
+  const [filters, setFilters] = useState({ localIds: [], supervisorId: '', fechaInicio: null, fechaFin: null });
   const [total, setTotal] = useState(0);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null });
   const [detailDialog, setDetailDialog] = useState({ open: false, revision: null });
@@ -387,7 +597,7 @@ export default function Revisiones() {
     setLoading(true);
     try {
       const params = { page: page + 1, limit: rowsPerPage };
-      if (filters.localId) params.localId = filters.localId;
+      if (filters.localIds.length > 0) params.localIds = filters.localIds.map((l) => l._id).join(',');
       if (filters.supervisorId) params.supervisorId = filters.supervisorId;
       if (filters.fechaInicio) params.fechaInicio = filters.fechaInicio.toISOString();
       if (filters.fechaFin) params.fechaFin = filters.fechaFin.toISOString();
@@ -448,6 +658,8 @@ export default function Revisiones() {
   };
 
   const rev = detailDialog.revision;
+  const gruposObs = listarObservaciones(rev);
+  const totalObs = gruposObs.reduce((n, g) => n + g.items.length, 0);
 
   const todasLasFotos = rev ? [
     ...Object.entries(rev.servicioCliente?.respuestas || {}).flatMap(([id, v]) => (v.fotos || []).map(f => ({ seccion: 'Servicio al Cliente', id, url: f }))),
@@ -460,20 +672,19 @@ export default function Revisiones() {
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4" fontWeight={600}>Revisiones</Typography>
-        <Typography variant="body2" color="textSecondary">{total} revisión(es)</Typography>
+        <Typography variant="body2" color="textSecondary">
+          {total} revisión(es){filters.localIds.length > 0 ? ` en ${filters.localIds.length} ${filters.localIds.length === 1 ? 'local' : 'locales'}` : ''}
+        </Typography>
       </Box>
 
       <Paper sx={{ p: 2, mb: 2 }}>
         <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
           <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} sm={6} md={3}>
-              <TextField select fullWidth label="Local" size="small" value={filters.localId}
-                onChange={(e) => setFilters({ ...filters, localId: e.target.value })}>
-                <MenuItem value="">Todos los locales</MenuItem>
-                {locales.map(l => <MenuItem key={l._id} value={l._id}>{l.nombre}</MenuItem>)}
-              </TextField>
+            <Grid item xs={12} sm={12} md={4}>
+              <FiltroLocales locales={locales} value={filters.localIds}
+                onChange={(lista) => setFilters({ ...filters, localIds: lista })} />
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6} md={2}>
               <TextField select fullWidth label="Supervisor" size="small" value={filters.supervisorId}
                 onChange={(e) => setFilters({ ...filters, supervisorId: e.target.value })}>
                 <MenuItem value="">Todos los supervisores</MenuItem>
@@ -492,7 +703,7 @@ export default function Revisiones() {
             </Grid>
             <Grid item xs={12} sm={6} md={2}>
               <Button variant="outlined" fullWidth
-                onClick={() => setFilters({ localId: '', supervisorId: '', fechaInicio: null, fechaFin: null })}>
+                onClick={() => setFilters({ localIds: [], supervisorId: '', fechaInicio: null, fechaFin: null })}>
                 Limpiar
               </Button>
             </Grid>
@@ -599,6 +810,7 @@ export default function Revisiones() {
         <Tabs value={tabDetalle} onChange={(_, v) => setTabDetalle(v)}
           sx={{ borderBottom: 1, borderColor: 'divider', px: 2 }}>
           <Tab label="Resumen" />
+          <Tab label={`Observaciones (${totalObs})`} />
           <Tab label="Secciones" />
           <Tab label={`Fotos (${todasLasFotos.length})`} />
           <Tab label={`Reclamos (${rev?.servicioCliente?.reclamos?.length || 0})`} />
@@ -706,6 +918,10 @@ export default function Revisiones() {
               )}
 
               {tabDetalle === 1 && (
+                <TabObservaciones key={rev._id} grupos={gruposObs} isDark={isDark} />
+              )}
+
+              {tabDetalle === 2 && (
                 <Box>
                   <SeccionDetalle isDark={isDark} titulo="Servicio al Cliente (40%)" respuestas={rev.servicioCliente?.respuestas} color="#2196f3" />
                   <SeccionDetalle isDark={isDark} titulo="Cuarto Frío (30%)" respuestas={rev.cuartoFrio?.respuestas} color="#4caf50" />
@@ -713,7 +929,7 @@ export default function Revisiones() {
                 </Box>
               )}
 
-              {tabDetalle === 2 && (
+              {tabDetalle === 3 && (
                 <Box>
                   {todasLasFotos.length === 0 ? (
                     <Typography color="textSecondary" align="center" py={4}>No hay imágenes en esta revisión</Typography>
@@ -735,7 +951,7 @@ export default function Revisiones() {
                 </Box>
               )}
 
-              {tabDetalle === 3 && (
+              {tabDetalle === 4 && (
                 <Box>
                   {(rev.servicioCliente?.reclamos || []).length === 0 ? (
                     <Typography color="success.main" align="center" py={4}>✅ No se registraron reclamos</Typography>
@@ -767,8 +983,8 @@ export default function Revisiones() {
                 </Box>
               )}
 
-              {/* TAB 4: Compromisos de la revisión */}
-              {tabDetalle === 4 && (
+              {/* TAB 5: Compromisos de la revisión */}
+              {tabDetalle === 5 && (
                 <CompromisosDeRevision
                   compromisos={rev.compromisos}
                   esBorrador={rev.esBorrador}
@@ -777,8 +993,8 @@ export default function Revisiones() {
                 />
               )}
 
-              {/* TAB 5: Ubicación — solo master/gerencia */}
-              {tabDetalle === 5 && ['master', 'gerencia'].includes(user?.rol) && (
+              {/* TAB 6: Ubicación — solo master/gerencia */}
+              {tabDetalle === 6 && ['master', 'gerencia'].includes(user?.rol) && (
                 <Box>
                   {!(rev?.geolocalizacion?.inicio?.latitude || rev?.geolocalizacion?.inicio?.timestamp || rev?.geolocalizacion?.fin?.latitude || rev?.geolocalizacion?.fin?.timestamp) ? (
                     <Box textAlign="center" py={4}>

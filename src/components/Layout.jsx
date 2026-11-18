@@ -18,12 +18,14 @@ import {
   FactCheck as FactCheckIcon,
   School as SchoolIcon,
   PlaylistAddCheck as TodosCompromisosIcon,
+  AccountBalance as EstadoResultadosIcon,
   AssignmentTurnedIn as CompromisosProductoIcon,
   Restaurant as ProductoIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useColorMode } from '../App';
+import ErrorBoundary from './ErrorBoundary';
 
 const DRAWER_WIDTH = 240;
 
@@ -32,10 +34,11 @@ const menuItems = [
   { path: '/dashboard', label: 'Dashboard', icon: <DashboardIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor'] },
   { path: '/revisiones', label: 'Revisiones', icon: <AssessmentIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'auditor', 'supervisorinterno', 'mentor'] },
   { path: '/dashboard-supervision', label: 'Dashboard Supervisión', icon: <BarChartIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor'] },
+  { path: '/estado-resultados', label: 'Estado de Resultados', icon: <EstadoResultadosIcon />, roles: ['master', 'gerencia'] },
   { path: '/todos-compromisos', alias: ['/compromisos', '/compromisos-mentoria'], label: 'Todos los compromisos', icon: <TodosCompromisosIcon />, roles: ['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor'] },
   { path: '/auditorias', label: 'Auditoría', icon: <FactCheckIcon />, roles: ['master', 'gerencia', 'auditor'] },
   { path: '/auditorias-producto', label: 'Auditoría de Producto', icon: <ProductoIcon />, roles: ['master', 'gerencia'] },
-  { path: '/compromisos-producto', label: 'Compromisos Producto', icon: <CompromisosProductoIcon />, roles: ['master', 'gerencia', 'administrador', 'mentor'] },
+  { path: '/compromisos-producto', label: 'Compromisos Producto', icon: <CompromisosProductoIcon />, roles: ['master', 'gerencia', 'administrador', 'mentor', 'producto'] },
   { path: '/mentorias', label: 'Mentorías', icon: <SchoolIcon />, roles: ['master', 'gerencia', 'mentor'] },
   { path: '/usuarios', label: 'Usuarios', icon: <PeopleIcon />, roles: ['master'] },
   { path: '/asignar-locales', label: 'Asignar Locales', icon: <AssignmentIcon />, roles: ['master'] },
@@ -195,7 +198,10 @@ export default function Layout() {
         minHeight: '100vh',
       }}>
         <Box sx={{ height: `${appBarHeight}px` }} />
-        <Outlet />
+        {/* key: al cambiar de página el aviso de error se reinicia */}
+        <ErrorBoundary key={location.pathname}>
+          <Outlet />
+        </ErrorBoundary>
       </Box>
     </Box>
   );
