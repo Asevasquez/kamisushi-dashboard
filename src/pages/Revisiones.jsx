@@ -6,7 +6,7 @@ import {
   DialogContent, DialogActions, Typography, CircularProgress,
   Divider, Tooltip, Tabs, Tab, LinearProgress, ImageList,
   ImageListItem, Accordion, AccordionSummary, AccordionDetails,
-  Autocomplete, Checkbox, createFilterOptions,
+  Autocomplete, Checkbox, createFilterOptions, Popper,
 } from '@mui/material';
 import {
   Delete as DeleteIcon,
@@ -363,6 +363,12 @@ function resaltar(nombre, texto) {
   return <>{nombre.slice(0, i)}<strong>{nombre.slice(i, i + buscado.length)}</strong>{nombre.slice(i + buscado.length)}</>;
 }
 
+// La lista desplegable no debe depender del ancho del campo: en una pantalla o una columna angosta el campo es
+// pequeño y la lista heredaba ese ancho (ilegible). Se pide un ancho mínimo propio, sin pasarse del ancho de la pantalla.
+function PopperLocales(props) {
+  return <Popper {...props} placement="bottom-start" style={{ ...props.style, width: 'fit-content', minWidth: 'min(340px, 92vw)', maxWidth: '92vw' }} />;
+}
+
 // Lista desplegable: arriba "N de M locales" + seleccionar todos los resultados; abajo, cuántos hay elegidos
 const PaperLocales = React.forwardRef(function PaperLocales({ children, ...props }, ref) {
   const ctx = useContext(CtxFiltroLocales);
@@ -373,18 +379,18 @@ const PaperLocales = React.forwardRef(function PaperLocales({ children, ...props
   const sinPerderFoco = (e) => e.preventDefault(); // que tocar un botón no cierre la lista
   return (
     <Paper ref={ref} {...props}>
-      <Box onMouseDown={sinPerderFoco} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, px: 1.75, py: 0.75, borderBottom: 1, borderColor: 'divider' }}>
+      <Box onMouseDown={sinPerderFoco} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 0.5, px: 1.75, py: 0.75, borderBottom: 1, borderColor: 'divider' }}>
         <Typography variant="caption" color="text.secondary">{visibles.length} de {ctx.total} locales</Typography>
-        <Button size="small" disabled={faltan.length === 0} onClick={() => ctx.agregar(faltan)} sx={{ fontWeight: 700 }}>
+        <Button size="small" disabled={faltan.length === 0} onClick={() => ctx.agregar(faltan)} sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>
           {visibles.length === ctx.total ? 'Seleccionar todos' : `Seleccionar los ${visibles.length} resultados`}
         </Button>
       </Box>
       {children}
-      <Box onMouseDown={sinPerderFoco} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, px: 1.75, py: 0.75, borderTop: 1, borderColor: 'divider' }}>
+      <Box onMouseDown={sinPerderFoco} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 0.5, px: 1.75, py: 0.75, borderTop: 1, borderColor: 'divider' }}>
         <Typography variant="caption" color="text.secondary">
           {ctx.value.length === 0 ? 'Ningún local elegido: se muestran todos' : `${ctx.value.length} ${ctx.value.length === 1 ? 'local elegido' : 'locales elegidos'}`}
         </Typography>
-        <Button size="small" disabled={ctx.value.length === 0} onClick={ctx.limpiar} sx={{ fontWeight: 700 }}>Limpiar selección</Button>
+        <Button size="small" disabled={ctx.value.length === 0} onClick={ctx.limpiar} sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Limpiar selección</Button>
       </Box>
     </Paper>
   );
@@ -418,13 +424,13 @@ function FiltroLocales({ locales, value, onChange }) {
           return (
             <li key={key} {...resto}>
               <Checkbox size="small" checked={selected} sx={{ mr: 1, p: 0.5 }} tabIndex={-1} disableRipple />
-              <Box sx={{ flex: 1 }}>{resaltar(option.nombre || '', texto)}</Box>
+              <Box sx={{ flex: 1, minWidth: 0, wordBreak: 'break-word' }}>{resaltar(option.nombre || '', texto)}</Box>
               {option.ciudad && <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>{option.ciudad}</Typography>}
             </li>
           );
         }}
         renderInput={(params) => <TextField {...params} label="Locales" placeholder={value.length ? '' : 'Todos los locales'} />}
-        slots={{ paper: PaperLocales }}
+        slots={{ paper: PaperLocales, popper: PopperLocales }}
         noOptionsText="Ningún local coincide con lo escrito"
         clearText="Quitar todos los locales" openText="Abrir la lista de locales" closeText="Cerrar la lista"
         getLimitTagsText={(mas) => `+${mas}`}
@@ -680,7 +686,7 @@ export default function Revisiones() {
       <Paper sx={{ p: 2, mb: 2 }}>
         <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
           <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} sm={12} md={4}>
+            <Grid item xs={12} sm={12} md={4} sx={{ flex: '1 1 280px', minWidth: 'min(280px, 100%)' }}>
               <FiltroLocales locales={locales} value={filters.localIds}
                 onChange={(lista) => setFilters({ ...filters, localIds: lista })} />
             </Grid>
