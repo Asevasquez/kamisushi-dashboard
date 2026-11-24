@@ -165,7 +165,17 @@ const ACCION = {
   evidencia_enviada: { label: 'Evidencia enviada', color: '#8a5200' },
   correccion_solicitada: { label: 'Corrección solicitada', color: '#a40000' },
   aprobado: { label: 'Aprobado y cerrado', color: '#1b6b28' },
+  cerrado_directo: { label: 'Cerrado por la auditora de producto', color: '#1b6b28' },
 };
+
+// Cómo verificó la auditora la evidencia cuando cierra un compromiso sin evidencia en la plataforma
+const MEDIOS_CIERRE = [
+  { valor: 'whatsapp', label: 'Por WhatsApp', texto: 'por WhatsApp' },
+  { valor: 'presencial', label: 'En persona', texto: 'en persona' },
+  { valor: 'otro', label: 'Otro', texto: 'por otro medio' },
+];
+const textoMedio = (m) => MEDIOS_CIERRE.find((x) => x.valor === m)?.texto || '';
+const fechaChile = (d = new Date()) => new Date(d).toLocaleDateString('en-CA', { timeZone: 'America/Santiago' }); // AAAA-MM-DD
 
 export function DetalleDialog({ id, onClose, onChanged, onEliminar, notificar }) {
   const { tono, fondo } = useTono();
@@ -176,6 +186,9 @@ export function DetalleDialog({ id, onClose, onChanged, onEliminar, notificar })
   const [fotos, setFotos] = useState([]); // [{ nombre, dataUrl }]
   const [procesando, setProcesando] = useState(false);
   const [enviando, setEnviando] = useState(false);
+  const [medio, setMedio] = useState('whatsapp');          // cierre sin evidencia en la plataforma
+  const [fechaEv, setFechaEv] = useState(fechaChile());    // día en que recibió/vio la evidencia
+  const [confirmando, setConfirmando] = useState(false);
   const inputRef = useRef(null);
 
   const cargar = useCallback(async () => {
@@ -193,7 +206,7 @@ export function DetalleDialog({ id, onClose, onChanged, onEliminar, notificar })
     }
   }, [id]);
 
-  useEffect(() => { setC(null); setComentario(''); setFotos([]); cargar(); }, [cargar]);
+  useEffect(() => { setC(null); setComentario(''); setFotos([]); setMedio('whatsapp'); setFechaEv(fechaChile()); setConfirmando(false); cargar(); }, [cargar]);
 
   const agregarArchivos = async (lista) => {
     const archivos = Array.from(lista || []).filter((f) => f.type && f.type.startsWith('image/'));
@@ -220,7 +233,7 @@ export function DetalleDialog({ id, onClose, onChanged, onEliminar, notificar })
       setC(data);
       setComentario('');
       setFotos([]);
-      notificar('Evidencia enviada. La supervisora la revisará.');
+      notificar(c && c.origen === 'producto' ? 'Evidencia enviada. La auditora de producto la revisará.' : 'Evidencia enviada. La supervisora la revisará.');
       onChanged();
     } catch (e) {
       notificar(e.response?.data?.error || 'No se pudo enviar la evidencia', 'error');
@@ -240,6 +253,32 @@ export function DetalleDialog({ id, onClose, onChanged, onEliminar, notificar })
       onChanged();
     } catch (e) {
       notificar(e.response?.data?.error || 'No se pudo guardar la revisión', 'error');
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  // La auditora de producto cierra un compromiso abierto sin evidencia en la plataforma (la recibió por otro medio o la vio)
+  const minFecha = c && c.fechaRevision ? fechaChile(c.fechaRevision) : undefined;
+  const pedirConfirmacion = () => {
+    if (medio === 'otro' && !comentario.trim()) { notificar('Describe cómo verificaste la evidencia', 'warning'); return; }
+    if (!fechaEv) { notificar('Indica el día en que recibiste o viste la evidencia', 'warning'); return; }
+    if (fechaEv > fechaChile()) { notificar('El día de la evidencia no puede ser futuro', 'warning'); return; }
+    if (minFecha && fechaEv < minFecha) { notificar('El día de la evidencia no puede ser anterior a la auditoría', 'warning'); return; }
+    setConfirmando(true);
+  };
+  const cerrarDirecto = async () => {
+    setEnviando(true);
+    try {
+      const { data } = await api.put(`/compromisos/${id}/cerrar`, { medio, comentario: comentario.trim(), fechaEvidencia: fechaEv });
+      setC(data);
+      setComentario('');
+      setConfirmando(false);
+      notificar('Compromiso cerrado. Quedó registrado que lo verificaste ' + textoMedio(medio));
+      onChanged();
+    } catch (e) {
+      setConfirmando(false);
+      notificar(e.response?.data?.error || 'No se pudo cerrar el compromiso', 'error');
     } finally {
       setEnviando(false);
     }
@@ -314,6 +353,7 @@ export function DetalleDialog({ id, onClose, onChanged, onEliminar, notificar })
                       · {c.cerradoATiempo ? 'a tiempo' : 'fuera de plazo'}
                     </Typography>
                   </Typography>
+                  {c.cierreDirecto && <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>Sin evidencia en la plataforma (la verificó la auditora)</Typography>}
                 </Box>
               )}
             </Box>
@@ -333,6 +373,7 @@ export function DetalleDialog({ id, onClose, onChanged, onEliminar, notificar })
                     <Typography variant="caption" color="text.secondary">
                       {h.usuarioNombre || '—'} · {fmtFechaHora(h.fecha)}
                       {typeof h.diasValidacion === 'number' ? ` · revisado en ${fmtDias(h.diasValidacion)}` : ''}
+                      {h.accion === 'cerrado_directo' ? ` · verificado ${textoMedio(h.medio)} · evidencia del ${fmtFechaISO(h.fechaEvidencia)}` : ''}
                     </Typography>
                     {h.comentario && <Typography sx={{ mt: 0.5, fontSize: 14, lineHeight: 1.45 }}>{h.comentario}</Typography>}
                     {h.fotos.length > 0 && (
@@ -367,6 +408,49 @@ export function DetalleDialog({ id, onClose, onChanged, onEliminar, notificar })
                 </Box>
               </Paper>
             )}
+
+            {/* Cierre directo: la auditora de producto recibió la evidencia por otro medio o la vio en persona */}
+            {c.puedeCerrarDirecto && (
+              <Paper variant="outlined" sx={{ mt: 1, p: 2 }}>
+                <Typography fontWeight={700} sx={{ fontSize: 14 }}>Cerrar sin evidencia en la plataforma</Typography>
+                <Typography variant="body2" sx={{ mt: 0.5, color: 'text.secondary' }}>
+                  Si el administrador te envió la evidencia por WhatsApp o la viste en persona, puedes cerrar el compromiso aquí.
+                </Typography>
+                <Box sx={{ mt: 1.5, display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'flex-start' }}>
+                  <Box>
+                    <Typography variant="caption" sx={{ display: 'block', mb: 0.5, fontWeight: 600, color: 'text.secondary' }}>¿Cómo la verificaste?</Typography>
+                    <ToggleButtonGroup exclusive size="small" value={medio} onChange={(_, v) => v && setMedio(v)} aria-label="Cómo verificaste la evidencia"
+                      sx={{ '& .MuiToggleButton-root': { textTransform: 'none', fontWeight: 600 } }}>
+                      {MEDIOS_CIERRE.map((m) => <ToggleButton key={m.valor} value={m.valor}>{m.label}</ToggleButton>)}
+                    </ToggleButtonGroup>
+                  </Box>
+                  <TextField type="date" size="small" label="Día en que la recibiste o la viste" value={fechaEv} onChange={(e) => setFechaEv(e.target.value)}
+                    slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: minFecha, max: fechaChile() } }}
+                    helperText="El plazo se mide con este día" sx={{ width: 260 }} />
+                </Box>
+                <TextField fullWidth multiline minRows={2} size="small" sx={{ mt: 2 }} value={comentario} onChange={(e) => setComentario(e.target.value)}
+                  label="Comentario" helperText={medio === 'otro' ? 'Obligatorio: describe cómo la verificaste' : 'Opcional'} />
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+                  <Button variant="contained" disabled={enviando} onClick={pedirConfirmacion} startIcon={<CheckIcon />}
+                    sx={{ borderRadius: 6, fontWeight: 700, bgcolor: '#17591f', '&:hover': { bgcolor: '#124516' } }}>Cerrar compromiso</Button>
+                </Box>
+              </Paper>
+            )}
+            <Dialog open={confirmando} onClose={() => !enviando && setConfirmando(false)} maxWidth="xs" fullWidth>
+              <DialogTitle>¿Cerrar este compromiso?</DialogTitle>
+              <DialogContent>
+                <Typography variant="body2">
+                  Se cerrará <b>sin evidencia en la plataforma</b>, verificado {textoMedio(medio)} (evidencia del {fmtFecha(fechaEv)}).
+                  Queda en el historial con tu nombre y no se puede deshacer desde aquí.
+                </Typography>
+              </DialogContent>
+              <DialogActions>
+                <Button color="inherit" disabled={enviando} onClick={() => setConfirmando(false)}>Cancelar</Button>
+                <Button variant="contained" disabled={enviando} onClick={cerrarDirecto}
+                  startIcon={enviando ? <CircularProgress size={16} color="inherit" /> : <CheckIcon />}
+                  sx={{ fontWeight: 700, bgcolor: '#17591f', '&:hover': { bgcolor: '#124516' } }}>Sí, cerrar</Button>
+              </DialogActions>
+            </Dialog>
 
             {/* Evidencia: administrador del local */}
             {c.puedeEnviarEvidencia && (
@@ -403,7 +487,7 @@ export function DetalleDialog({ id, onClose, onChanged, onEliminar, notificar })
                 </Box>
                 <Box display="flex" alignItems="center" justifyContent="space-between" gap={2} mt={2} flexWrap="wrap">
                   <Typography variant="caption" color="text.secondary">
-                    Agrega al menos una foto o un comentario. Se enviará a {c.supervisorNombre || 'la supervisora'} para su revisión.
+                    Agrega al menos una foto o un comentario. Se enviará a {c.supervisorNombre || (c.origen === 'producto' ? 'la auditora de producto' : 'la supervisora')} para su revisión.
                   </Typography>
                   <Button variant="contained" disabled={enviando || procesando} onClick={enviarEvidencia}
                     startIcon={enviando ? <CircularProgress size={16} color="inherit" /> : <SendIcon />}
@@ -434,7 +518,8 @@ const TABS = [
   { valor: 'cerrado', label: 'Cerrados' },
 ];
 
-function Seguimiento({ esAdmin, esMentor, localInicial, origen, idAbrir, onCerrarDetalle, notificar }) {
+function Seguimiento({ esAdmin, esMentor, esAuditoraProducto, localInicial, origen, idAbrir, onCerrarDetalle, notificar }) {
+  const quien = origen === 'producto' ? 'Auditora' : 'Supervisora'; // quien crea el compromiso y valida la evidencia
   const { tono, fondo } = useTono();
   const [estado, setEstado] = useState('todos');
   const [filtros, setFiltros] = useState({ localId: localInicial || '', seccion: '', supervisorId: '', mes: '' });
@@ -526,7 +611,7 @@ function Seguimiento({ esAdmin, esMentor, localInicial, origen, idAbrir, onCerra
     ? [
       { label: 'POR ENTREGAR', value: cn.abierto + cn.vencido, pct: pctDe(cn.abierto + cn.vencido), color: cn.vencido > 0 ? '#a40000' : '#0a4a8a',
         sub: `${cn.vencido > 0 ? `${cn.vencido} vencido${cn.vencido > 1 ? 's' : ''} · ` : ''}sube la evidencia antes de la fecha límite` },
-      { label: 'EN REVISIÓN', value: cn.en_revision, pct: pctDe(cn.en_revision), color: '#8a5200', sub: 'esperan la validación de la supervisora' },
+      { label: 'EN REVISIÓN', value: cn.en_revision, pct: pctDe(cn.en_revision), color: '#8a5200', sub: origen === 'producto' ? 'esperan la validación de la auditora' : 'esperan la validación de la supervisora' },
       { label: 'CERRADOS', value: cn.cerrado, pct: pctDe(cn.cerrado), color: '#1b6b28', sub: 'compromisos cumplidos' },
     ]
     : [
@@ -583,8 +668,8 @@ function Seguimiento({ esAdmin, esMentor, localInicial, origen, idAbrir, onCerra
               </TextField>
             )}
             {!esAdmin && (
-              <TextField select size="small" label="Supervisora" value={filtros.supervisorId} onChange={(e) => cambiarFiltro('supervisorId', e.target.value)} sx={{ minWidth: 190 }}>
-                <MenuItem value="">Todas las supervisoras</MenuItem>
+              <TextField select size="small" label={quien} value={filtros.supervisorId} onChange={(e) => cambiarFiltro('supervisorId', e.target.value)} sx={{ minWidth: 190 }}>
+                <MenuItem value="">{origen === 'producto' ? 'Todas las auditoras' : 'Todas las supervisoras'}</MenuItem>
                 {opciones.supervisoras.map((s) => <MenuItem key={s._id} value={s._id}>{s.nombre}</MenuItem>)}
               </TextField>
             )}
@@ -607,7 +692,7 @@ function Seguimiento({ esAdmin, esMentor, localInicial, origen, idAbrir, onCerra
                 <TableRow sx={headRowSx}>
                   <TableCell sx={thSx}>Local</TableCell>
                   <TableCell sx={thSx}>Revisión</TableCell>
-                  <TableCell sx={thSx}>Supervisora</TableCell>
+                  <TableCell sx={thSx}>{quien}</TableCell>
                   <TableCell sx={thSx}>Sección y compromiso</TableCell>
                   <TableCell sx={thSx}>Responsable</TableCell>
                   <TableCell sx={thSx}>Fecha límite</TableCell>
@@ -637,7 +722,10 @@ function Seguimiento({ esAdmin, esMentor, localInicial, origen, idAbrir, onCerra
                           {c.estado === 'cerrado' ? `cerrado el ${fmtFechaISO(c.fechaCierre)}` : relativo(c.diasRestantes)}
                         </Typography>
                       </TableCell>
-                      <TableCell><EstadoChip estado={c.estadoVisible} /></TableCell>
+                      <TableCell>
+                        <EstadoChip estado={c.estadoVisible} />
+                        {c.cierreDirecto && <Typography variant="caption" sx={{ display: 'block', mt: 0.25, color: 'text.secondary' }}>Cierre directo</Typography>}
+                      </TableCell>
                       <TableCell align="center">
                         <Box display="flex" alignItems="center" justifyContent="center" gap={0.5}>
                           {c.puedeEnviarEvidencia ? (
@@ -645,6 +733,8 @@ function Seguimiento({ esAdmin, esMentor, localInicial, origen, idAbrir, onCerra
                               sx={{ borderRadius: 5, fontWeight: 700, whiteSpace: 'nowrap', bgcolor: '#f20000' }}>Enviar evidencia</Button>
                           ) : c.puedeRevisar ? (
                             <Button size="small" variant="outlined" onClick={() => setDetalleId(c._id)} sx={{ borderRadius: 5, fontWeight: 700 }}>Revisar</Button>
+                          ) : c.puedeCerrarDirecto ? (
+                            <Button size="small" variant="outlined" aria-label={`Cerrar compromiso de ${c.localNombre}`} onClick={() => setDetalleId(c._id)} sx={{ borderRadius: 5, fontWeight: 700 }}>Cerrar</Button>
                           ) : (
                             <Tooltip title="Ver detalle">
                               <IconButton aria-label={`Ver compromiso de ${c.localNombre}`} onClick={() => setDetalleId(c._id)}><ViewIcon fontSize="small" /></IconButton>
@@ -829,6 +919,7 @@ function VistaGeneral({ onVerLocal, origen, notificar }) {
         { header: 'Fecha límite', key: 'lim', width: 14 }, { header: 'Estado', key: 'est', width: 14 },
         { header: 'Evidencias', key: 'evidenciasCount' }, { header: 'Correcciones', key: 'correcciones' },
         { header: 'Fecha cierre', key: 'cierre', width: 14 }, { header: 'Cerrado a tiempo', key: 'aTiempo', width: 16 },
+        { header: 'Tipo de cierre', key: 'tipoCierre', width: 34 },
       ], detRes.data.map((c) => ({
         ...c,
         rev: fmtFechaISO(c.fechaRevision),
@@ -836,6 +927,7 @@ function VistaGeneral({ onVerLocal, origen, notificar }) {
         est: ESTADOS[c.estadoVisible]?.label || c.estadoVisible,
         cierre: c.fechaCierre ? fmtFechaISO(c.fechaCierre) : '',
         aTiempo: c.estado === 'cerrado' ? (c.cerradoATiempo ? 'Sí' : 'No') : '',
+        tipoCierre: c.estado === 'cerrado' ? (c.cierreDirecto ? 'Directo (sin evidencia en la plataforma)' : 'Con evidencia en la plataforma') : '',
       })));
 
       const hoy = new Date();
@@ -889,7 +981,7 @@ function VistaGeneral({ onVerLocal, origen, notificar }) {
         )}
         {select('Local', 'localId', opciones.locales, 'Todos los locales', 200)}
         {select('Administrador', 'administradorId', opciones.administradores, 'Todos los administradores', 200)}
-        {select('Supervisora', 'supervisorId', opciones.supervisoras, 'Todas las supervisoras', 190)}
+        {select(origen === 'producto' ? 'Auditora' : 'Supervisora', 'supervisorId', opciones.supervisoras, origen === 'producto' ? 'Todas las auditoras' : 'Todas las supervisoras', 190)}
       </Paper>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -1057,14 +1149,14 @@ function VistaGeneral({ onVerLocal, origen, notificar }) {
 
               <Paper sx={{ borderRadius: 3, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
                 <Box px={2.5} pt={2.25} pb={1.5}>
-                  <Typography fontWeight={500}>Supervisoras · seguimiento</Typography>
+                  <Typography fontWeight={500}>{origen === 'producto' ? 'Auditoras' : 'Supervisoras'} · seguimiento</Typography>
                   <Typography variant="caption" color="text.secondary">Quienes crean y validan los compromisos</Typography>
                 </Box>
                 <TableContainer>
                   <Table size="small" sx={{ minWidth: 380 }}>
                     <TableHead>
                       <TableRow sx={{ bgcolor: 'action.hover' }}>
-                        <TableCell sx={{ fontWeight: 700 }}>Supervisora</TableCell><TableCell sx={{ fontWeight: 700 }}>Creados</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>{origen === 'producto' ? 'Auditora' : 'Supervisora'}</TableCell><TableCell sx={{ fontWeight: 700 }}>Creados</TableCell>
                         <TableCell sx={{ fontWeight: 700 }}>Por revisar</TableCell><TableCell sx={{ fontWeight: 700 }}>Validación prom.</TableCell>
                       </TableRow>
                     </TableHead>
@@ -1100,6 +1192,8 @@ export default function Compromisos({ origen = 'revision' } = {}) {
   // Administrador y mentor suben evidencia en sus locales; solo el mentor tiene además "Mentoría" (solo lectura).
   const esAdmin = ['administrador', 'mentor'].includes(user?.rol);
   const esMentor = user?.rol === 'mentor';
+  // La auditora de producto ve todos los compromisos de producto: valida la evidencia o los cierra ella misma (no sube evidencia)
+  const esAuditoraProducto = user?.rol === 'producto';
   const [searchParams, setSearchParams] = useSearchParams();
   const [vista, setVista] = useState('seguimiento');
   const [localInicial, setLocalInicial] = useState('');
@@ -1119,6 +1213,8 @@ export default function Compromisos({ origen = 'revision' } = {}) {
           <Typography variant="caption" color="text.secondary">
             {esMentor
               ? 'Los de los locales que administras y el seguimiento de los que mentoreas o tutoreas'
+              : esAuditoraProducto
+                ? 'Todos los compromisos de producto: valida la evidencia que suben los locales o ciérralos tú cuando la recibas por otro medio'
               : esAdmin
                 ? (esProducto ? 'Los compromisos de producto de tus locales: sube la evidencia antes de la fecha límite' : 'Los compromisos de tus locales: sube la evidencia antes de la fecha límite')
                 : esProducto
@@ -1137,11 +1233,12 @@ export default function Compromisos({ origen = 'revision' } = {}) {
       <Box mt={2}>
         {esGlobal && vista === 'general'
           ? <VistaGeneral onVerLocal={verLocal} origen={origen} notificar={notificar} />
-          : <Seguimiento key={claveSeg} esAdmin={esAdmin} esMentor={esMentor} localInicial={localInicial} origen={origen}
+          : <Seguimiento key={claveSeg} esAdmin={esAdmin} esMentor={esMentor} esAuditoraProducto={esAuditoraProducto} localInicial={localInicial} origen={origen}
               idAbrir={searchParams.get('id')} onCerrarDetalle={cerrarDetalle} notificar={notificar} />}
       </Box>
 
-      <Snackbar open={snack.open} autoHideDuration={4500} onClose={() => setSnack((s) => ({ ...s, open: false }))}
+      {/* El clic que dispara un aviso nuevo no debe cerrar el aviso que ya estaba visible (reason 'clickaway') */}
+      <Snackbar open={snack.open} autoHideDuration={4500} onClose={(_, motivo) => { if (motivo !== 'clickaway') setSnack((s) => ({ ...s, open: false })); }}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         <Alert severity={snack.sev} variant="filled" onClose={() => setSnack((s) => ({ ...s, open: false }))}>{snack.msg}</Alert>
       </Snackbar>
