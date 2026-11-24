@@ -18,6 +18,7 @@ import Mentorias from './pages/Mentorias';
 import CompromisosMentoria from './pages/CompromisosMentoria';
 import Compromisos from './pages/Compromisos';
 import EstadoResultados from './pages/EstadoResultados';
+import VentasDiarias from './pages/VentasDiarias';
 import CompromisosProducto from './pages/CompromisosProducto';
 import TodosCompromisos from './pages/TodosCompromisos';
 import DashboardProducto from './pages/DashboardProducto';
@@ -80,6 +81,7 @@ function AppRoutes() {
         <Route path="compromisos" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'administrador', 'supervisor', 'supervisorinterno', 'mentor']}><Compromisos /></PrivateRoute>} />
         <Route path="auditorias-producto" element={<PrivateRoute allowedRoles={['master', 'gerencia']}><DashboardProducto /></PrivateRoute>} />
         <Route path="estado-resultados" element={<PrivateRoute allowedRoles={['master', 'gerencia']}><EstadoResultados /></PrivateRoute>} />
+        <Route path="ventas-diarias" element={<PrivateRoute allowedRoles={['master', 'gerencia']}><VentasDiarias /></PrivateRoute>} />
         <Route path="auditorias" element={<PrivateRoute allowedRoles={['master', 'gerencia', 'auditor']}><Auditorias /></PrivateRoute>} />
         <Route path="usuarios" element={<PrivateRoute allowedRoles={['master']}><Usuarios /></PrivateRoute>} />
         <Route path="locales" element={<PrivateRoute allowedRoles={['master']}><Locales /></PrivateRoute>} />
